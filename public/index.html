@@ -15,6 +15,11 @@
             justify-content: center;
             padding: 20px;
         }
+        .page-wrapper {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
         .container {
             background: rgba(255,255,255,0.95);
             border-radius: 20px;
@@ -22,6 +27,30 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             max-width: 600px;
             width: 100%;
+        }
+        .sidebar {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            min-width: 200px;
+            text-align: center;
+        }
+        .sidebar h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .total-count {
+            font-size: 48px;
+            font-weight: bold;
+            color: #764ba2;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .total-label {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
         }
         h1 {
             text-align: center;
@@ -86,16 +115,23 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎯 3D Ball Drop Game</h1>
-        <canvas id="gameCanvas" width="500" height="600"></canvas>
-        <div class="controls">
-            <button id="startButton">Start Game</button>
+    <div class="page-wrapper">
+        <div class="container">
+            <h1>🎯 3D Ball Drop Game</h1>
+            <canvas id="gameCanvas" width="500" height="600"></canvas>
+            <div class="controls">
+                <button id="startButton">Start Game</button>
+            </div>
+            <div class="info">
+                <p class="status" id="status">Click Start Game!</p>
+                <p class="difficulty">⚡ HARD MODE: Fast Ball + Small Hole</p>
+                <p>Games: <span id="gamesPlayed">0</span></p>
+            </div>
         </div>
-        <div class="info">
-            <p class="status" id="status">Click Start Game!</p>
-            <p class="difficulty">⚡ HARD MODE: Fast Ball + Small Hole</p>
-            <p>Games: <span id="gamesPlayed">0</span></p>
+        <div class="sidebar">
+            <h2>🌍 Global Stats</h2>
+            <div class="total-count" id="totalPlays">0</div>
+            <div class="total-label">Total Games Played</div>
         </div>
     </div>
     <script>
@@ -104,10 +140,13 @@
         const startButton = document.getElementById('startButton');
         const statusText = document.getElementById('status');
         const gamesPlayedSpan = document.getElementById('gamesPlayed');
+        const totalPlaysSpan = document.getElementById('totalPlays');
         
         let ball = null;
         let gameActive = false;
         let gamesPlayed = 0;
+        let totalPlays = parseInt(localStorage.getItem('totalPlays') || '0');
+        totalPlaysSpan.textContent = totalPlays;
         
         const BALL_RADIUS = 15;
         const BALL_SPEED = 8;
@@ -169,10 +208,17 @@
                         
                         if (distance < this.radius + peg.radius) {
                             const angle = Math.atan2(dy, dx);
-                            this.vx = Math.cos(angle) * 4;
-                            this.vy = Math.sin(angle) * 4;
-                            this.x = peg.x + Math.cos(angle) * (this.radius + peg.radius + 1);
-                            this.y = peg.y + Math.sin(angle) * (this.radius + peg.radius + 1);
+                            const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                            const bounceSpeed = Math.max(speed * 0.6, 2);
+                            
+                            this.vx = Math.cos(angle) * bounceSpeed + (Math.random() - 0.5) * 2;
+                            this.vy = Math.sin(angle) * bounceSpeed;
+                            
+                            // Make sure ball keeps moving down
+                            if (this.vy < 1) this.vy = 1;
+                            
+                            this.x = peg.x + Math.cos(angle) * (this.radius + peg.radius + 2);
+                            this.y = peg.y + Math.sin(angle) * (this.radius + peg.radius + 2);
                         }
                     }
                     
@@ -354,6 +400,11 @@
             startButton.disabled = true;
             gamesPlayed++;
             gamesPlayedSpan.textContent = gamesPlayed;
+            
+            totalPlays++;
+            totalPlaysSpan.textContent = totalPlays;
+            localStorage.setItem('totalPlays', totalPlays);
+            
             ball = new Ball();
             gameActive = true;
             statusText.textContent = 'Click canvas to drop!';
@@ -368,7 +419,6 @@
             }
         });
         
-        draw3DHole();
         drawPegs();
     </script>
 </body>
