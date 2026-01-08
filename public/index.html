@@ -34,7 +34,6 @@
             border-radius: 10px;
             display: block;
             margin: 20px auto;
-            background: linear-gradient(to bottom, #1a1a2e 0%, #2d2d44 100%);
             cursor: pointer;
             box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);
         }
@@ -88,13 +87,13 @@
 <body>
     <div class="container">
         <h1>🍗 Ball Drop Game 🍗</h1>
-        <canvas id="gameCanvas" width="500" height="650"></canvas>
+        <canvas id="gameCanvas" width="500" height="700"></canvas>
         <div class="controls">
             <button id="startButton">Start Game</button>
         </div>
         <div class="info">
             <p class="status" id="status">Click Start Game!</p>
-            <p class="difficulty">🍗 Dodge the drumsticks! Land in the volcano! 🌋</p>
+            <p class="difficulty">🍗 Dodge the drumettes! Land in the volcano! 🌋</p>
             <p>Games: <span id="gamesPlayed">0</span></p>
         </div>
     </div>
@@ -115,10 +114,10 @@
         const BALL_RADIUS = 12;
         const BALL_SPEED = 6;
         const GRAVITY = 0.3;
-        const FIRE_Y = canvas.height - 100;
         const VOLCANO_X = canvas.width / 2;
-        const VOLCANO_WIDTH = 80;
-        const VOLCANO_Y = FIRE_Y - 30;
+        const VOLCANO_WIDTH = 70;
+        const VOLCANO_Y = canvas.height - 180;
+        const FIRE_Y = canvas.height - 120;
 
         const PEG_RADIUS = 12;
         const PEG_ROWS = 7;
@@ -151,25 +150,25 @@
         
         function createFireParticle() {
             return {
-                x: Math.random() * canvas.width,
-                y: FIRE_Y + 20 + Math.random() * 30,
-                size: 20 + Math.random() * 40,
-                speedY: -1 - Math.random() * 3,
+                x: VOLCANO_X + (Math.random() - 0.5) * 40,
+                y: VOLCANO_Y + 10,
+                size: 15 + Math.random() * 25,
+                speedY: -2 - Math.random() * 3,
                 speedX: (Math.random() - 0.5) * 2,
                 life: 1,
-                decay: 0.01 + Math.random() * 0.02
+                decay: 0.02 + Math.random() * 0.02
             };
         }
         
         function createSmokeParticle() {
             return {
-                x: Math.random() * canvas.width,
-                y: FIRE_Y - Math.random() * 30,
-                size: 15 + Math.random() * 25,
-                speedY: -0.5 - Math.random() * 1,
+                x: VOLCANO_X + (Math.random() - 0.5) * 30,
+                y: VOLCANO_Y - 20,
+                size: 20 + Math.random() * 30,
+                speedY: -1 - Math.random() * 1.5,
                 speedX: (Math.random() - 0.5) * 1,
-                life: 0.5,
-                decay: 0.005 + Math.random() * 0.01
+                life: 1,
+                decay: 0.008 + Math.random() * 0.008
             };
         }
         
@@ -205,10 +204,10 @@
             waterParticles = [];
             steamParticles = [];
             
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < 40; i++) {
                 fireParticles.push(createFireParticle());
             }
-            for (let i = 0; i < 30; i++) {
+            for (let i = 0; i < 20; i++) {
                 smokeParticles.push(createSmokeParticle());
             }
         }
@@ -269,7 +268,7 @@
                         this.vx = -Math.abs(this.vx) * 0.8;
                     }
                     
-                    if (this.y + this.radius >= VOLCANO_Y) {
+                    if (this.y + this.radius >= VOLCANO_Y + 20) {
                         this.checkWin();
                         return true;
                     }
@@ -333,7 +332,7 @@
                     statusText.style.color = '#3b82f6';
                     playerWon = true;
                     this.sprayingWater = true;
-                    this.y = VOLCANO_Y - 10;
+                    this.y = VOLCANO_Y;
                 } else {
                     statusText.textContent = '🔥 Burned! Try again! 🔥';
                     statusText.style.color = '#dc3545';
@@ -345,125 +344,110 @@
             }
         }
         
-        function drawChickenDrumstick(x, y, radius, rotation) {
+        function drawChickenDrumette(x, y, radius, rotation) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(rotation);
             
-            const meatRadius = radius * 1.1;
-            const boneLength = radius * 2;
-            const boneWidth = radius * 0.4;
+            const meatLength = radius * 2.2;
+            const meatWidth = radius * 1.4;
+            const boneLength = radius * 1.0;
+            const boneWidth = radius * 0.35;
             
             // Shadow
+            ctx.save();
+            ctx.translate(3, 3);
             ctx.beginPath();
-            ctx.arc(3, 3, meatRadius, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, meatWidth / 2, meatLength / 2, 0, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
             ctx.fill();
-            
-            // Bone shadow
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.beginPath();
-            ctx.moveTo(-boneWidth / 2 + 3, meatRadius * 0.5 + 3);
-            ctx.lineTo(-boneWidth / 2 + 3, meatRadius * 0.5 + boneLength + 3);
-            ctx.lineTo(boneWidth / 2 + 3, meatRadius * 0.5 + boneLength + 3);
-            ctx.lineTo(boneWidth / 2 + 3, meatRadius * 0.5 + 3);
-            ctx.fill();
+            ctx.restore();
             
             // Bone
-            ctx.fillStyle = '#f8f4e8';
+            ctx.fillStyle = '#f5f0e6';
             ctx.beginPath();
-            ctx.moveTo(-boneWidth / 2, meatRadius * 0.5);
-            ctx.lineTo(-boneWidth / 2, meatRadius * 0.5 + boneLength);
-            ctx.lineTo(boneWidth / 2, meatRadius * 0.5 + boneLength);
-            ctx.lineTo(boneWidth / 2, meatRadius * 0.5);
+            ctx.roundRect(-boneWidth / 2, meatLength / 2 - 8, boneWidth, boneLength, 3);
             ctx.fill();
-            
-            // Bone end knob
-            ctx.beginPath();
-            ctx.arc(0, meatRadius * 0.5 + boneLength, boneWidth * 0.7, 0, Math.PI * 2);
-            ctx.fillStyle = '#f8f4e8';
-            ctx.fill();
-            ctx.strokeStyle = '#d9d0c0';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
             
             // Bone highlight
-            ctx.fillStyle = '#fffdf8';
-            ctx.fillRect(-boneWidth / 2 + 2, meatRadius * 0.5 + 2, boneWidth * 0.3, boneLength - 4);
+            ctx.fillStyle = '#fffef9';
+            ctx.beginPath();
+            ctx.roundRect(-boneWidth / 2 + 1, meatLength / 2 - 6, boneWidth * 0.4, boneLength - 4, 2);
+            ctx.fill();
             
             // Bone outline
-            ctx.strokeStyle = '#d9d0c0';
-            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#d4c9b8';
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(-boneWidth / 2, meatRadius * 0.5);
-            ctx.lineTo(-boneWidth / 2, meatRadius * 0.5 + boneLength);
-            ctx.moveTo(boneWidth / 2, meatRadius * 0.5);
-            ctx.lineTo(boneWidth / 2, meatRadius * 0.5 + boneLength);
+            ctx.roundRect(-boneWidth / 2, meatLength / 2 - 8, boneWidth, boneLength, 3);
             ctx.stroke();
             
-            // Main meat - golden fried chicken
+            // Bone knob
+            ctx.fillStyle = '#f5f0e6';
             ctx.beginPath();
-            ctx.arc(0, 0, meatRadius, 0, Math.PI * 2);
+            ctx.ellipse(0, meatLength / 2 + boneLength - 10, boneWidth * 0.6, boneWidth * 0.45, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#d4c9b8';
+            ctx.stroke();
             
-            const meatGradient = ctx.createRadialGradient(-meatRadius * 0.3, -meatRadius * 0.3, 0, 0, 0, meatRadius);
-            meatGradient.addColorStop(0, '#f5b041');
-            meatGradient.addColorStop(0.4, '#e59525');
-            meatGradient.addColorStop(0.7, '#d4781c');
-            meatGradient.addColorStop(1, '#a85d14');
+            // Main meat body
+            ctx.beginPath();
+            ctx.ellipse(0, 0, meatWidth / 2, meatLength / 2, 0, 0, Math.PI * 2);
+            
+            const meatGradient = ctx.createRadialGradient(-meatWidth * 0.2, -meatLength * 0.2, 0, 0, 0, meatLength / 2);
+            meatGradient.addColorStop(0, '#f4a940');
+            meatGradient.addColorStop(0.3, '#e8923a');
+            meatGradient.addColorStop(0.6, '#d4782f');
+            meatGradient.addColorStop(0.85, '#c45e20');
+            meatGradient.addColorStop(1, '#8b4513');
             
             ctx.fillStyle = meatGradient;
             ctx.fill();
             
             // Crispy bumps
             const bumps = [
-                {x: -meatRadius * 0.4, y: -meatRadius * 0.3, r: 3},
-                {x: meatRadius * 0.3, y: -meatRadius * 0.4, r: 2.5},
-                {x: meatRadius * 0.5, y: meatRadius * 0.1, r: 3},
-                {x: -meatRadius * 0.5, y: meatRadius * 0.2, r: 2.5},
-                {x: 0, y: -meatRadius * 0.6, r: 2},
-                {x: meatRadius * 0.2, y: meatRadius * 0.5, r: 2.5},
+                {x: -meatWidth * 0.25, y: -meatLength * 0.2, r: 4},
+                {x: meatWidth * 0.15, y: -meatLength * 0.25, r: 3.5},
+                {x: meatWidth * 0.3, y: 0, r: 3},
+                {x: -meatWidth * 0.3, y: meatLength * 0.1, r: 4},
+                {x: 0, y: meatLength * 0.25, r: 3.5},
+                {x: meatWidth * 0.2, y: meatLength * 0.15, r: 3},
             ];
             
-            ctx.fillStyle = '#c9691a';
+            ctx.fillStyle = '#cd6a27';
             for (let bump of bumps) {
                 ctx.beginPath();
                 ctx.arc(bump.x, bump.y, bump.r, 0, Math.PI * 2);
                 ctx.fill();
             }
             
-            // Dark crispy spots
+            // Dark spots
             const darkSpots = [
-                {x: -meatRadius * 0.2, y: meatRadius * 0.3, r: 2},
-                {x: meatRadius * 0.4, y: -meatRadius * 0.2, r: 1.5},
-                {x: -meatRadius * 0.5, y: -meatRadius * 0.1, r: 1.5},
+                {x: -meatWidth * 0.1, y: meatLength * 0.1, r: 2.5},
+                {x: meatWidth * 0.25, y: -meatLength * 0.1, r: 2},
+                {x: -meatWidth * 0.25, y: -meatLength * 0.3, r: 2},
             ];
             
-            ctx.fillStyle = '#8b4513';
+            ctx.fillStyle = '#a34d15';
             for (let spot of darkSpots) {
                 ctx.beginPath();
                 ctx.arc(spot.x, spot.y, spot.r, 0, Math.PI * 2);
                 ctx.fill();
             }
             
-            // Highlight shine
+            // Highlight
             ctx.beginPath();
-            ctx.ellipse(-meatRadius * 0.3, -meatRadius * 0.35, meatRadius * 0.35, meatRadius * 0.25, -0.5, 0, Math.PI * 2);
-            const shineGradient = ctx.createRadialGradient(-meatRadius * 0.3, -meatRadius * 0.35, 0, -meatRadius * 0.3, -meatRadius * 0.35, meatRadius * 0.35);
-            shineGradient.addColorStop(0, 'rgba(255, 240, 180, 0.8)');
-            shineGradient.addColorStop(0.5, 'rgba(255, 220, 150, 0.4)');
-            shineGradient.addColorStop(1, 'rgba(255, 200, 100, 0)');
-            ctx.fillStyle = shineGradient;
-            ctx.fill();
-            
-            // Small secondary highlight
-            ctx.beginPath();
-            ctx.arc(meatRadius * 0.25, -meatRadius * 0.5, meatRadius * 0.12, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 220, 0.6)';
+            ctx.ellipse(-meatWidth * 0.15, -meatLength * 0.2, meatWidth * 0.25, meatLength * 0.2, -0.3, 0, Math.PI * 2);
+            const highlightGradient = ctx.createRadialGradient(-meatWidth * 0.15, -meatLength * 0.2, 0, -meatWidth * 0.15, -meatLength * 0.2, meatWidth * 0.3);
+            highlightGradient.addColorStop(0, 'rgba(255, 230, 150, 0.7)');
+            highlightGradient.addColorStop(0.5, 'rgba(255, 200, 100, 0.3)');
+            highlightGradient.addColorStop(1, 'rgba(255, 180, 80, 0)');
+            ctx.fillStyle = highlightGradient;
             ctx.fill();
             
             // Outline
             ctx.beginPath();
-            ctx.arc(0, 0, meatRadius, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, meatWidth / 2, meatLength / 2, 0, 0, Math.PI * 2);
             ctx.strokeStyle = '#8b4513';
             ctx.lineWidth = 2;
             ctx.stroke();
@@ -473,156 +457,197 @@
         
         function drawPegs() {
             for (let peg of pegs) {
-                drawChickenDrumstick(peg.x, peg.y, peg.radius, peg.rotation);
+                drawChickenDrumette(peg.x, peg.y, peg.radius, peg.rotation);
             }
         }
         
         function drawVolcano() {
             const vx = VOLCANO_X;
             const vy = VOLCANO_Y;
-            const width = VOLCANO_WIDTH;
-            const mountainHeight = 120;
+            const baseWidth = 200;
+            const topWidth = VOLCANO_WIDTH;
             
-            // Back mountain layer (darker, for depth)
+            // Main volcano body - dark gray/brown like the reference
             ctx.beginPath();
-            ctx.moveTo(vx - width - 80, canvas.height);
-            ctx.lineTo(vx - width - 40, vy + 20);
-            ctx.quadraticCurveTo(vx - width, vy - 10, vx - width / 2 - 10, vy);
-            ctx.lineTo(vx + width / 2 + 10, vy);
-            ctx.quadraticCurveTo(vx + width, vy - 10, vx + width + 40, vy + 20);
-            ctx.lineTo(vx + width + 80, canvas.height);
+            ctx.moveTo(vx - baseWidth, canvas.height);
+            ctx.lineTo(vx - topWidth / 2 - 20, vy + 30);
+            ctx.lineTo(vx - topWidth / 2, vy);
+            ctx.lineTo(vx + topWidth / 2, vy);
+            ctx.lineTo(vx + topWidth / 2 + 20, vy + 30);
+            ctx.lineTo(vx + baseWidth, canvas.height);
             ctx.closePath();
             
-            const backGradient = ctx.createLinearGradient(vx, vy, vx, canvas.height);
-            backGradient.addColorStop(0, '#3d2914');
-            backGradient.addColorStop(0.5, '#4a3520');
-            backGradient.addColorStop(1, '#2d1f10');
-            ctx.fillStyle = backGradient;
+            const bodyGradient = ctx.createLinearGradient(vx - baseWidth, vy, vx + baseWidth, vy);
+            bodyGradient.addColorStop(0, '#4a4055');
+            bodyGradient.addColorStop(0.3, '#5d5167');
+            bodyGradient.addColorStop(0.5, '#6b5d75');
+            bodyGradient.addColorStop(0.7, '#5d5167');
+            bodyGradient.addColorStop(1, '#4a4055');
+            ctx.fillStyle = bodyGradient;
             ctx.fill();
             
-            // Main mountain body
+            // Left shadow side
             ctx.beginPath();
-            ctx.moveTo(vx - width - 50, canvas.height);
-            ctx.lineTo(vx - width / 2, vy + 5);
-            ctx.lineTo(vx + width / 2, vy + 5);
-            ctx.lineTo(vx + width + 50, canvas.height);
+            ctx.moveTo(vx - baseWidth, canvas.height);
+            ctx.lineTo(vx - topWidth / 2 - 20, vy + 30);
+            ctx.lineTo(vx - topWidth / 2, vy);
+            ctx.lineTo(vx - 20, vy + 50);
+            ctx.lineTo(vx - baseWidth / 3, canvas.height);
             ctx.closePath();
-            
-            const mountainGradient = ctx.createLinearGradient(vx - width, vy, vx + width, vy);
-            mountainGradient.addColorStop(0, '#5c4033');
-            mountainGradient.addColorStop(0.3, '#6b4c38');
-            mountainGradient.addColorStop(0.5, '#7a5a45');
-            mountainGradient.addColorStop(0.7, '#6b4c38');
-            mountainGradient.addColorStop(1, '#5c4033');
-            ctx.fillStyle = mountainGradient;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
             ctx.fill();
             
-            // Left side shading
+            // Right highlight side
             ctx.beginPath();
-            ctx.moveTo(vx - width - 50, canvas.height);
-            ctx.lineTo(vx - width / 2, vy + 5);
-            ctx.lineTo(vx - width / 4, canvas.height);
+            ctx.moveTo(vx + baseWidth, canvas.height);
+            ctx.lineTo(vx + topWidth / 2 + 20, vy + 30);
+            ctx.lineTo(vx + topWidth / 2, vy);
+            ctx.lineTo(vx + 20, vy + 50);
+            ctx.lineTo(vx + baseWidth / 3, canvas.height);
             ctx.closePath();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
             ctx.fill();
             
-            // Right side highlight
-            ctx.beginPath();
-            ctx.moveTo(vx + width + 50, canvas.height);
-            ctx.lineTo(vx + width / 2, vy + 5);
-            ctx.lineTo(vx + width / 4, canvas.height);
-            ctx.closePath();
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.fill();
-            
-            // Rock textures on mountain
-            ctx.fillStyle = '#4a3828';
-            const rocks = [
-                {x: vx - 60, y: vy + 60, w: 25, h: 15},
-                {x: vx + 40, y: vy + 80, w: 20, h: 12},
-                {x: vx - 30, y: vy + 100, w: 18, h: 10},
-                {x: vx + 70, y: vy + 50, w: 15, h: 10},
-                {x: vx - 80, y: vy + 90, w: 22, h: 14},
-            ];
-            
-            for (let rock of rocks) {
+            // Lava streams down the volcano
+            if (fireIntensity > 0.3) {
+                // Left lava stream
                 ctx.beginPath();
-                ctx.ellipse(rock.x, rock.y, rock.w / 2, rock.h / 2, 0.2, 0, Math.PI * 2);
+                ctx.moveTo(vx - 15, vy + 25);
+                ctx.quadraticCurveTo(vx - 40, vy + 100, vx - 60, canvas.height);
+                ctx.lineTo(vx - 50, canvas.height);
+                ctx.quadraticCurveTo(vx - 30, vy + 100, vx - 10, vy + 25);
+                ctx.closePath();
+                
+                const lavaStream1 = ctx.createLinearGradient(vx - 15, vy + 25, vx - 15, canvas.height);
+                lavaStream1.addColorStop(0, `rgba(255, 200, 50, ${fireIntensity})`);
+                lavaStream1.addColorStop(0.3, `rgba(255, 120, 20, ${fireIntensity})`);
+                lavaStream1.addColorStop(1, `rgba(200, 50, 0, ${fireIntensity * 0.7})`);
+                ctx.fillStyle = lavaStream1;
+                ctx.fill();
+                
+                // Right lava stream
+                ctx.beginPath();
+                ctx.moveTo(vx + 15, vy + 25);
+                ctx.quadraticCurveTo(vx + 50, vy + 120, vx + 80, canvas.height);
+                ctx.lineTo(vx + 70, canvas.height);
+                ctx.quadraticCurveTo(vx + 40, vy + 120, vx + 10, vy + 25);
+                ctx.closePath();
+                
+                const lavaStream2 = ctx.createLinearGradient(vx + 15, vy + 25, vx + 15, canvas.height);
+                lavaStream2.addColorStop(0, `rgba(255, 200, 50, ${fireIntensity})`);
+                lavaStream2.addColorStop(0.3, `rgba(255, 120, 20, ${fireIntensity})`);
+                lavaStream2.addColorStop(1, `rgba(200, 50, 0, ${fireIntensity * 0.7})`);
+                ctx.fillStyle = lavaStream2;
+                ctx.fill();
+                
+                // Center lava stream
+                ctx.beginPath();
+                ctx.moveTo(vx - 5, vy + 30);
+                ctx.quadraticCurveTo(vx + 10, vy + 150, vx + 20, canvas.height);
+                ctx.lineTo(vx + 10, canvas.height);
+                ctx.quadraticCurveTo(vx, vy + 150, vx + 5, vy + 30);
+                ctx.closePath();
+                
+                const lavaStream3 = ctx.createLinearGradient(vx, vy + 30, vx, canvas.height);
+                lavaStream3.addColorStop(0, `rgba(255, 200, 50, ${fireIntensity})`);
+                lavaStream3.addColorStop(0.3, `rgba(255, 120, 20, ${fireIntensity})`);
+                lavaStream3.addColorStop(1, `rgba(200, 50, 0, ${fireIntensity * 0.7})`);
+                ctx.fillStyle = lavaStream3;
                 ctx.fill();
             }
             
-            // Volcano rim
+            // Crater rim - orange/red like reference
             ctx.beginPath();
-            ctx.ellipse(vx, vy + 5, width / 2 + 15, 18, 0, 0, Math.PI * 2);
+            ctx.moveTo(vx - topWidth / 2 - 25, vy + 5);
+            ctx.quadraticCurveTo(vx - topWidth / 2 - 10, vy - 15, vx - topWidth / 2, vy - 5);
+            ctx.lineTo(vx + topWidth / 2, vy - 5);
+            ctx.quadraticCurveTo(vx + topWidth / 2 + 10, vy - 15, vx + topWidth / 2 + 25, vy + 5);
+            ctx.lineTo(vx + topWidth / 2 + 20, vy + 30);
+            ctx.lineTo(vx - topWidth / 2 - 20, vy + 30);
+            ctx.closePath();
             
-            const rimGradient = ctx.createLinearGradient(vx - width / 2, vy, vx + width / 2, vy);
-            rimGradient.addColorStop(0, '#4a3525');
-            rimGradient.addColorStop(0.3, '#6b4c38');
-            rimGradient.addColorStop(0.5, '#8b6347');
-            rimGradient.addColorStop(0.7, '#6b4c38');
-            rimGradient.addColorStop(1, '#4a3525');
+            const rimGradient = ctx.createLinearGradient(vx, vy - 15, vx, vy + 30);
+            rimGradient.addColorStop(0, '#ff6b35');
+            rimGradient.addColorStop(0.4, '#e85d2d');
+            rimGradient.addColorStop(0.7, '#c44d25');
+            rimGradient.addColorStop(1, '#8b3a1d');
             ctx.fillStyle = rimGradient;
             ctx.fill();
             
-            // Rim highlight
+            // Inner crater - dark hole
             ctx.beginPath();
-            ctx.ellipse(vx, vy + 2, width / 2 + 12, 12, 0, Math.PI, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            ctx.ellipse(vx, vy + 5, topWidth / 2 - 5, 15, 0, 0, Math.PI * 2);
             
-            // Crater (hole)
-            ctx.beginPath();
-            ctx.ellipse(vx, vy + 8, width / 2, 14, 0, 0, Math.PI * 2);
-            
-            const craterGradient = ctx.createRadialGradient(vx, vy + 8, 0, vx, vy + 8, width / 2);
-            craterGradient.addColorStop(0, '#0a0500');
-            craterGradient.addColorStop(0.6, '#1a0f05');
-            craterGradient.addColorStop(1, '#2d1a0a');
+            const craterGradient = ctx.createRadialGradient(vx, vy + 5, 0, vx, vy + 5, topWidth / 2);
+            craterGradient.addColorStop(0, '#1a0500');
+            craterGradient.addColorStop(0.5, '#2d0a00');
+            craterGradient.addColorStop(1, '#4a1500');
             ctx.fillStyle = craterGradient;
             ctx.fill();
             
-            // Lava glow inside crater
+            // Lava glow in crater
             if (fireIntensity > 0.1) {
                 ctx.beginPath();
-                ctx.ellipse(vx, vy + 12, width / 2 - 8, 10, 0, 0, Math.PI * 2);
+                ctx.ellipse(vx, vy + 8, topWidth / 2 - 12, 10, 0, 0, Math.PI * 2);
                 
-                const lavaGradient = ctx.createRadialGradient(vx, vy + 12, 0, vx, vy + 12, width / 2 - 8);
-                lavaGradient.addColorStop(0, `rgba(255, 220, 50, ${fireIntensity * 0.9})`);
-                lavaGradient.addColorStop(0.4, `rgba(255, 150, 0, ${fireIntensity * 0.7})`);
-                lavaGradient.addColorStop(0.7, `rgba(255, 80, 0, ${fireIntensity * 0.5})`);
-                lavaGradient.addColorStop(1, `rgba(200, 50, 0, ${fireIntensity * 0.2})`);
+                const lavaGradient = ctx.createRadialGradient(vx, vy + 8, 0, vx, vy + 8, topWidth / 2 - 12);
+                lavaGradient.addColorStop(0, `rgba(255, 230, 50, ${fireIntensity})`);
+                lavaGradient.addColorStop(0.4, `rgba(255, 150, 0, ${fireIntensity * 0.8})`);
+                lavaGradient.addColorStop(0.7, `rgba(255, 80, 0, ${fireIntensity * 0.6})`);
+                lavaGradient.addColorStop(1, `rgba(200, 50, 0, ${fireIntensity * 0.3})`);
                 ctx.fillStyle = lavaGradient;
                 ctx.fill();
             }
             
-            // Snow cap on top edges
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            // Rim highlight
             ctx.beginPath();
-            ctx.moveTo(vx - width / 2 - 5, vy + 8);
-            ctx.quadraticCurveTo(vx - width / 2 - 15, vy + 2, vx - width / 2 - 10, vy + 20);
-            ctx.quadraticCurveTo(vx - width / 2 - 5, vy + 15, vx - width / 2, vy + 10);
-            ctx.closePath();
-            ctx.fill();
+            ctx.moveTo(vx - topWidth / 2 + 5, vy);
+            ctx.quadraticCurveTo(vx, vy - 8, vx + topWidth / 2 - 5, vy);
+            ctx.strokeStyle = 'rgba(255, 200, 100, 0.5)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        
+        function drawSmoke() {
+            if (fireIntensity <= 0.1) return;
             
-            ctx.beginPath();
-            ctx.moveTo(vx + width / 2 + 5, vy + 8);
-            ctx.quadraticCurveTo(vx + width / 2 + 15, vy + 2, vx + width / 2 + 10, vy + 20);
-            ctx.quadraticCurveTo(vx + width / 2 + 5, vy + 15, vx + width / 2, vy + 10);
-            ctx.closePath();
-            ctx.fill();
+            for (let i = 0; i < smokeParticles.length; i++) {
+                const p = smokeParticles[i];
+                
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.life -= p.decay;
+                p.size *= 1.015;
+                
+                if (p.life <= 0) {
+                    smokeParticles[i] = createSmokeParticle();
+                    continue;
+                }
+                
+                // Dark gray smoke like reference
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                gradient.addColorStop(0, `rgba(70, 65, 60, ${p.life * 0.7 * fireIntensity})`);
+                gradient.addColorStop(0.5, `rgba(60, 55, 50, ${p.life * 0.5 * fireIntensity})`);
+                gradient.addColorStop(1, `rgba(50, 45, 40, 0)`);
+                
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
         }
         
         function updateAndDrawFire() {
             if (fireIntensity <= 0) return;
             
+            // Fire particles coming from crater
             for (let i = 0; i < fireParticles.length; i++) {
                 const p = fireParticles[i];
                 
                 p.x += p.speedX;
                 p.y += p.speedY;
                 p.life -= p.decay;
-                p.size *= 0.99;
+                p.size *= 0.98;
                 
                 if (p.life <= 0 || p.size < 2) {
                     fireParticles[i] = createFireParticle();
@@ -631,20 +656,15 @@
                 
                 const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * fireIntensity);
                 
-                if (p.life > 0.7) {
-                    gradient.addColorStop(0, `rgba(255, 255, 255, ${p.life * fireIntensity})`);
-                    gradient.addColorStop(0.2, `rgba(255, 255, 100, ${p.life * 0.9 * fireIntensity})`);
-                    gradient.addColorStop(0.5, `rgba(255, 150, 0, ${p.life * 0.7 * fireIntensity})`);
+                if (p.life > 0.6) {
+                    gradient.addColorStop(0, `rgba(255, 255, 200, ${p.life * fireIntensity})`);
+                    gradient.addColorStop(0.3, `rgba(255, 200, 50, ${p.life * 0.9 * fireIntensity})`);
+                    gradient.addColorStop(0.6, `rgba(255, 120, 0, ${p.life * 0.7 * fireIntensity})`);
                     gradient.addColorStop(1, `rgba(255, 50, 0, 0)`);
-                } else if (p.life > 0.4) {
-                    gradient.addColorStop(0, `rgba(255, 200, 50, ${p.life * fireIntensity})`);
-                    gradient.addColorStop(0.3, `rgba(255, 100, 0, ${p.life * 0.8 * fireIntensity})`);
-                    gradient.addColorStop(0.7, `rgba(200, 50, 0, ${p.life * 0.5 * fireIntensity})`);
-                    gradient.addColorStop(1, `rgba(100, 0, 0, 0)`);
                 } else {
-                    gradient.addColorStop(0, `rgba(255, 100, 0, ${p.life * fireIntensity})`);
-                    gradient.addColorStop(0.5, `rgba(150, 30, 0, ${p.life * 0.6 * fireIntensity})`);
-                    gradient.addColorStop(1, `rgba(50, 0, 0, 0)`);
+                    gradient.addColorStop(0, `rgba(255, 150, 50, ${p.life * fireIntensity})`);
+                    gradient.addColorStop(0.5, `rgba(255, 80, 0, ${p.life * 0.6 * fireIntensity})`);
+                    gradient.addColorStop(1, `rgba(200, 30, 0, 0)`);
                 }
                 
                 ctx.beginPath();
@@ -652,60 +672,6 @@
                 ctx.fillStyle = gradient;
                 ctx.fill();
             }
-            
-            for (let i = 0; i < smokeParticles.length; i++) {
-                const p = smokeParticles[i];
-                
-                p.x += p.speedX;
-                p.y += p.speedY;
-                p.life -= p.decay;
-                p.size *= 1.01;
-                
-                if (p.life <= 0) {
-                    smokeParticles[i] = createSmokeParticle();
-                    continue;
-                }
-                
-                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-                gradient.addColorStop(0, `rgba(80, 80, 80, ${p.life * 0.3 * fireIntensity})`);
-                gradient.addColorStop(0.5, `rgba(60, 60, 60, ${p.life * 0.2 * fireIntensity})`);
-                gradient.addColorStop(1, `rgba(40, 40, 40, 0)`);
-                
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fillStyle = gradient;
-                ctx.fill();
-            }
-            
-            for (let i = 0; i < 20; i++) {
-                const x = (canvas.width / 20) * i + Math.sin(frameCount * 0.1 + i) * 10;
-                const flameHeight = (40 + Math.sin(frameCount * 0.15 + i * 0.5) * 20) * fireIntensity;
-                const flameWidth = 25 + Math.sin(frameCount * 0.1 + i) * 5;
-                
-                if (flameHeight < 5) continue;
-                
-                const gradient = ctx.createLinearGradient(x, canvas.height, x, canvas.height - flameHeight);
-                gradient.addColorStop(0, `rgba(255, 100, 0, ${0.9 * fireIntensity})`);
-                gradient.addColorStop(0.3, `rgba(255, 200, 0, ${0.8 * fireIntensity})`);
-                gradient.addColorStop(0.6, `rgba(255, 100, 0, ${0.6 * fireIntensity})`);
-                gradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
-                
-                ctx.beginPath();
-                ctx.moveTo(x - flameWidth / 2, canvas.height);
-                ctx.quadraticCurveTo(x - flameWidth / 4, canvas.height - flameHeight * 0.7, x, canvas.height - flameHeight);
-                ctx.quadraticCurveTo(x + flameWidth / 4, canvas.height - flameHeight * 0.7, x + flameWidth / 2, canvas.height);
-                ctx.closePath();
-                ctx.fillStyle = gradient;
-                ctx.fill();
-            }
-            
-            const glowGradient = ctx.createLinearGradient(0, FIRE_Y, 0, canvas.height);
-            glowGradient.addColorStop(0, 'rgba(255, 100, 0, 0)');
-            glowGradient.addColorStop(0.5, `rgba(255, 100, 0, ${0.3 * fireIntensity})`);
-            glowGradient.addColorStop(1, `rgba(255, 50, 0, ${0.5 * fireIntensity})`);
-            
-            ctx.fillStyle = glowGradient;
-            ctx.fillRect(0, FIRE_Y, canvas.width, canvas.height - FIRE_Y);
         }
         
         function updateAndDrawWater() {
@@ -720,7 +686,7 @@
             }
             
             if (fireIntensity > 0.1 && Math.random() < 0.3) {
-                steamParticles.push(createSteamParticle(ball.x, FIRE_Y));
+                steamParticles.push(createSteamParticle(ball.x, VOLCANO_Y));
             }
             
             for (let i = waterParticles.length - 1; i >= 0; i--) {
@@ -761,9 +727,9 @@
                 }
                 
                 const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-                gradient.addColorStop(0, `rgba(200, 200, 200, ${p.life * 0.4})`);
-                gradient.addColorStop(0.5, `rgba(180, 180, 180, ${p.life * 0.2})`);
-                gradient.addColorStop(1, 'rgba(150, 150, 150, 0)');
+                gradient.addColorStop(0, `rgba(220, 220, 220, ${p.life * 0.5})`);
+                gradient.addColorStop(0.5, `rgba(200, 200, 200, ${p.life * 0.3})`);
+                gradient.addColorStop(1, 'rgba(180, 180, 180, 0)');
                 
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
@@ -772,12 +738,24 @@
             }
         }
         
+        function drawBackground() {
+            // Sky gradient
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGradient.addColorStop(0, '#87CEEB');
+            skyGradient.addColorStop(0.5, '#B0E0E6');
+            skyGradient.addColorStop(1, '#E0F4FF');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
         function gameLoop() {
             frameCount++;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            updateAndDrawFire();
+            drawBackground();
+            drawSmoke();
             drawVolcano();
+            updateAndDrawFire();
             updateAndDrawWater();
             drawPegs();
             
