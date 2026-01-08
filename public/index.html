@@ -114,6 +114,31 @@
         const GRAVITY = 0.8;
         const HOLE_WIDTH = 50;
         const HOLE_Y = canvas.height - 40;
+
+        // Peg configuration
+        const PEG_RADIUS = 8;
+        const PEG_ROWS = 8;
+        const PEG_COLS = 9;
+        const pegs = [];
+
+        // Create pegs in a staggered pattern
+        function createPegs() {
+            const startY = 120;
+            const spacingY = 50;
+            const spacingX = 55;
+            
+            for (let row = 0; row < PEG_ROWS; row++) {
+                const cols = row % 2 === 0 ? PEG_COLS : PEG_COLS - 1;
+                const offsetX = row % 2 === 0 ? 0 : spacingX / 2;
+                
+                for (let col = 0; col < cols; col++) {
+                    const x = 25 + offsetX + col * spacingX;
+                    const y = startY + row * spacingY;
+                    pegs.push({ x, y, radius: PEG_RADIUS });
+                }
+            }
+        }
+        createPegs();
         
         class Ball {
             constructor() {
@@ -133,7 +158,34 @@
                     }
                 } else {
                     this.vy += GRAVITY;
+                    this.x += this.vx;
                     this.y += this.vy;
+                    
+                    // Bounce off pegs
+                    for (let peg of pegs) {
+                        const dx = this.x - peg.x;
+                        const dy = this.y - peg.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < this.radius + peg.radius) {
+                            const angle = Math.atan2(dy, dx);
+                            this.vx = Math.cos(angle) * 4;
+                            this.vy = Math.sin(angle) * 4;
+                            this.x = peg.x + Math.cos(angle) * (this.radius + peg.radius + 1);
+                            this.y = peg.y + Math.sin(angle) * (this.radius + peg.radius + 1);
+                        }
+                    }
+                    
+                    // Bounce off walls
+                    if (this.x - this.radius < 0) {
+                        this.x = this.radius;
+                        this.vx *= -0.8;
+                    }
+                    if (this.x + this.radius > canvas.width) {
+                        this.x = canvas.width - this.radius;
+                        this.vx *= -0.8;
+                    }
+                    
                     if (this.y + this.radius >= HOLE_Y) {
                         this.checkWin();
                         return true;
@@ -210,6 +262,33 @@
             }
         }
         
+        function drawPegs() {
+            for (let peg of pegs) {
+                ctx.beginPath();
+                ctx.arc(peg.x + 3, peg.y + 3, peg.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fill();
+                
+                const gradient = ctx.createRadialGradient(
+                    peg.x - peg.radius/3, peg.y - peg.radius/3, 0,
+                    peg.x, peg.y, peg.radius
+                );
+                gradient.addColorStop(0, '#a0a0a0');
+                gradient.addColorStop(0.5, '#707070');
+                gradient.addColorStop(1, '#404040');
+                
+                ctx.beginPath();
+                ctx.arc(peg.x, peg.y, peg.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(peg.x - peg.radius/3, peg.y - peg.radius/3, peg.radius/3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fill();
+            }
+        }
+        
         function draw3DHole() {
             const center = canvas.width / 2;
             
@@ -259,6 +338,7 @@
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             draw3DHole();
+            drawPegs();
             
             if (ball && gameActive) {
                 const gameOver = ball.update();
@@ -289,6 +369,7 @@
         });
         
         draw3DHole();
+        drawPegs();
     </script>
 </body>
 </html>
