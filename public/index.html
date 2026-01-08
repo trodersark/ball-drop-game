@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Egg Drop Game</title>
+    <title>Ball Drop Game</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -34,7 +34,7 @@
             border-radius: 10px;
             display: block;
             margin: 20px auto;
-            background: radial-gradient(circle at 30% 30%, #87CEEB, #5da4d9);
+            background: linear-gradient(to bottom, #1a1a2e 0%, #2d2d44 100%);
             cursor: pointer;
             box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);
         }
@@ -87,14 +87,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>🍗 Egg Drop Game 🥚</h1>
+        <h1>🔥 Ball Drop Game 🔥</h1>
         <canvas id="gameCanvas" width="500" height="650"></canvas>
         <div class="controls">
             <button id="startButton">Start Game</button>
         </div>
         <div class="info">
             <p class="status" id="status">Click Start Game!</p>
-            <p class="difficulty">🍗 Dodge the wings! Land in the nest! 🪹</p>
+            <p class="difficulty">🍗 Dodge the wings! Avoid the fire! 🔥</p>
             <p>Games: <span id="gamesPlayed">0</span></p>
         </div>
     </div>
@@ -110,18 +110,20 @@
         let gamesPlayed = 0;
         let gameOver = false;
         
-        const BALL_RADIUS = 10;
+        const BALL_RADIUS = 12;
         const BALL_SPEED = 6;
         const GRAVITY = 0.3;
-        const NEST_WIDTH = 70;
-        const BRANCH_Y = canvas.height - 100;
-        const NEST_Y = BRANCH_Y - 25;
+        const FIRE_Y = canvas.height - 80;
 
         const PEG_RADIUS = 10;
         const PEG_ROWS = 8;
         const PEG_COLS = 10;
         const pegs = [];
-
+        
+        // Fire particles
+        const fireParticles = [];
+        const smokeParticles = [];
+        
         function createPegs() {
             const startY = 100;
             const spacingY = 45;
@@ -141,8 +143,41 @@
         }
         createPegs();
         
+        // Initialize fire particles
+        function createFireParticle() {
+            return {
+                x: Math.random() * canvas.width,
+                y: FIRE_Y + Math.random() * 30,
+                size: 20 + Math.random() * 40,
+                speedY: -1 - Math.random() * 3,
+                speedX: (Math.random() - 0.5) * 2,
+                life: 1,
+                decay: 0.01 + Math.random() * 0.02,
+                hue: Math.random() * 60 // 0-60 for red to yellow
+            };
+        }
+        
+        function createSmokeParticle() {
+            return {
+                x: Math.random() * canvas.width,
+                y: FIRE_Y - 20 - Math.random() * 30,
+                size: 15 + Math.random() * 25,
+                speedY: -0.5 - Math.random() * 1,
+                speedX: (Math.random() - 0.5) * 1,
+                life: 0.5,
+                decay: 0.005 + Math.random() * 0.01
+            };
+        }
+        
+        // Fill initial particles
+        for (let i = 0; i < 100; i++) {
+            fireParticles.push(createFireParticle());
+        }
+        for (let i = 0; i < 30; i++) {
+            smokeParticles.push(createSmokeParticle());
+        }
+        
         let frameCount = 0;
-        let fireFlicker = 0;
         
         class Ball {
             constructor() {
@@ -196,7 +231,7 @@
                         this.vx = -Math.abs(this.vx) * 0.8;
                     }
                     
-                    if (this.y + this.radius >= NEST_Y + 15) {
+                    if (this.y + this.radius >= FIRE_Y) {
                         this.checkWin();
                         return true;
                     }
@@ -209,31 +244,36 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.rotation);
                 
+                // Shadow
                 ctx.beginPath();
-                ctx.ellipse(3, 3, this.radius * 0.7, this.radius, 0, 0, Math.PI * 2);
+                ctx.arc(4, 4, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.fill();
                 
+                // Ball
                 ctx.beginPath();
-                ctx.ellipse(0, 0, this.radius * 0.7, this.radius, 0, 0, Math.PI * 2);
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                 
-                const gradient = ctx.createRadialGradient(-3, -3, 0, 0, 0, this.radius);
-                gradient.addColorStop(0, '#fffef5');
-                gradient.addColorStop(0.5, '#f5e6c8');
-                gradient.addColorStop(1, '#e8d4a8');
+                const gradient = ctx.createRadialGradient(-4, -4, 0, 0, 0, this.radius);
+                gradient.addColorStop(0, '#ff6b6b');
+                gradient.addColorStop(0.3, '#ee5a52');
+                gradient.addColorStop(0.7, '#dc3545');
+                gradient.addColorStop(1, '#991b1b');
                 
                 ctx.fillStyle = gradient;
                 ctx.fill();
                 
+                // Highlight
                 ctx.beginPath();
-                ctx.ellipse(-3, -5, 4, 5, -0.3, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.arc(-4, -4, this.radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
                 ctx.fill();
                 
+                // Outline
                 ctx.beginPath();
-                ctx.ellipse(0, 0, this.radius * 0.7, this.radius, 0, 0, Math.PI * 2);
-                ctx.strokeStyle = '#d4c4a4';
-                ctx.lineWidth = 1;
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = '#991b1b';
+                ctx.lineWidth = 2;
                 ctx.stroke();
                 
                 ctx.restore();
@@ -244,15 +284,8 @@
             }
             
             checkWin() {
-                const nestCenter = canvas.width / 2;
-                const distance = Math.abs(this.x - nestCenter);
-                if (distance < NEST_WIDTH / 2) {
-                    statusText.textContent = '🎉 EGG-CELLENT! YOU WIN! 🥚';
-                    statusText.style.color = '#10b981';
-                } else {
-                    statusText.textContent = '🍳 Scrambled! Try again!';
-                    statusText.style.color = '#dc3545';
-                }
+                statusText.textContent = '🔥 Burned! Try again! 🔥';
+                statusText.style.color = '#dc3545';
                 gameActive = false;
                 gameOver = true;
                 startButton.disabled = false;
@@ -302,271 +335,130 @@
             }
         }
         
-        function drawFire() {
-            const fireX = canvas.width / 2;
-            const fireY = canvas.height - 25;
-            
-            fireFlicker = (fireFlicker + 0.15) % (Math.PI * 2);
-            
-            // Draw multiple flames
-            for (let i = 0; i < 7; i++) {
-                const offsetX = (i - 3) * 30;
-                const flameHeight = 35 + Math.sin(fireFlicker + i) * 8;
-                const flameWidth = 15 + Math.sin(fireFlicker + i * 0.5) * 3;
+        function updateAndDrawFire() {
+            // Update and draw fire particles
+            for (let i = 0; i < fireParticles.length; i++) {
+                const p = fireParticles[i];
                 
-                // Outer flame (red/orange)
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.life -= p.decay;
+                p.size *= 0.99;
+                
+                if (p.life <= 0 || p.size < 2) {
+                    fireParticles[i] = createFireParticle();
+                    continue;
+                }
+                
+                // Draw fire particle
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                
+                if (p.life > 0.7) {
+                    // White/yellow core
+                    gradient.addColorStop(0, `rgba(255, 255, 255, ${p.life})`);
+                    gradient.addColorStop(0.2, `rgba(255, 255, 100, ${p.life * 0.9})`);
+                    gradient.addColorStop(0.5, `rgba(255, 150, 0, ${p.life * 0.7})`);
+                    gradient.addColorStop(1, `rgba(255, 50, 0, 0)`);
+                } else if (p.life > 0.4) {
+                    // Orange/red
+                    gradient.addColorStop(0, `rgba(255, 200, 50, ${p.life})`);
+                    gradient.addColorStop(0.3, `rgba(255, 100, 0, ${p.life * 0.8})`);
+                    gradient.addColorStop(0.7, `rgba(200, 50, 0, ${p.life * 0.5})`);
+                    gradient.addColorStop(1, `rgba(100, 0, 0, 0)`);
+                } else {
+                    // Dying ember
+                    gradient.addColorStop(0, `rgba(255, 100, 0, ${p.life})`);
+                    gradient.addColorStop(0.5, `rgba(150, 30, 0, ${p.life * 0.6})`);
+                    gradient.addColorStop(1, `rgba(50, 0, 0, 0)`);
+                }
+                
                 ctx.beginPath();
-                ctx.moveTo(fireX + offsetX - flameWidth, fireY);
-                ctx.quadraticCurveTo(fireX + offsetX - flameWidth/2, fireY - flameHeight * 0.6, fireX + offsetX, fireY - flameHeight);
-                ctx.quadraticCurveTo(fireX + offsetX + flameWidth/2, fireY - flameHeight * 0.6, fireX + offsetX + flameWidth, fireY);
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+            
+            // Update and draw smoke particles
+            for (let i = 0; i < smokeParticles.length; i++) {
+                const p = smokeParticles[i];
+                
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.life -= p.decay;
+                p.size *= 1.01;
+                
+                if (p.life <= 0) {
+                    smokeParticles[i] = createSmokeParticle();
+                    continue;
+                }
+                
+                // Draw smoke
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                gradient.addColorStop(0, `rgba(80, 80, 80, ${p.life * 0.3})`);
+                gradient.addColorStop(0.5, `rgba(60, 60, 60, ${p.life * 0.2})`);
+                gradient.addColorStop(1, `rgba(40, 40, 40, 0)`);
+                
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+            
+            // Draw base flames (more intense at bottom)
+            for (let i = 0; i < 20; i++) {
+                const x = (canvas.width / 20) * i + Math.sin(frameCount * 0.1 + i) * 10;
+                const flameHeight = 40 + Math.sin(frameCount * 0.15 + i * 0.5) * 20;
+                const flameWidth = 25 + Math.sin(frameCount * 0.1 + i) * 5;
+                
+                const gradient = ctx.createLinearGradient(x, canvas.height, x, canvas.height - flameHeight);
+                gradient.addColorStop(0, 'rgba(255, 100, 0, 0.9)');
+                gradient.addColorStop(0.3, 'rgba(255, 200, 0, 0.8)');
+                gradient.addColorStop(0.6, 'rgba(255, 100, 0, 0.6)');
+                gradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
+                
+                ctx.beginPath();
+                ctx.moveTo(x - flameWidth / 2, canvas.height);
+                ctx.quadraticCurveTo(x - flameWidth / 4, canvas.height - flameHeight * 0.7, x, canvas.height - flameHeight);
+                ctx.quadraticCurveTo(x + flameWidth / 4, canvas.height - flameHeight * 0.7, x + flameWidth / 2, canvas.height);
                 ctx.closePath();
-                
-                const outerGradient = ctx.createLinearGradient(fireX + offsetX, fireY, fireX + offsetX, fireY - flameHeight);
-                outerGradient.addColorStop(0, '#ff4500');
-                outerGradient.addColorStop(0.3, '#ff6a00');
-                outerGradient.addColorStop(0.6, '#ff8c00');
-                outerGradient.addColorStop(1, '#ffcc00');
-                
-                ctx.fillStyle = outerGradient;
-                ctx.fill();
-                
-                // Inner flame (yellow/white)
-                const innerHeight = flameHeight * 0.6;
-                const innerWidth = flameWidth * 0.5;
-                
-                ctx.beginPath();
-                ctx.moveTo(fireX + offsetX - innerWidth, fireY);
-                ctx.quadraticCurveTo(fireX + offsetX - innerWidth/2, fireY - innerHeight * 0.6, fireX + offsetX, fireY - innerHeight);
-                ctx.quadraticCurveTo(fireX + offsetX + innerWidth/2, fireY - innerHeight * 0.6, fireX + offsetX + innerWidth, fireY);
-                ctx.closePath();
-                
-                const innerGradient = ctx.createLinearGradient(fireX + offsetX, fireY, fireX + offsetX, fireY - innerHeight);
-                innerGradient.addColorStop(0, '#ffcc00');
-                innerGradient.addColorStop(0.5, '#ffff66');
-                innerGradient.addColorStop(1, '#ffffcc');
-                
-                ctx.fillStyle = innerGradient;
+                ctx.fillStyle = gradient;
                 ctx.fill();
             }
             
-            // Glowing coals at base
-            for (let i = 0; i < 12; i++) {
-                const coalX = fireX - 100 + i * 18 + Math.sin(fireFlicker + i) * 2;
-                const coalY = fireY + 5;
-                const coalRadius = 8 + Math.random() * 4;
-                
-                const coalGradient = ctx.createRadialGradient(coalX, coalY, 0, coalX, coalY, coalRadius);
-                coalGradient.addColorStop(0, '#ff6600');
-                coalGradient.addColorStop(0.5, '#cc3300');
-                coalGradient.addColorStop(1, '#330000');
-                
-                ctx.beginPath();
-                ctx.arc(coalX, coalY, coalRadius, 0, Math.PI * 2);
-                ctx.fillStyle = coalGradient;
-                ctx.fill();
-            }
-        }
-        
-        function drawFryingPan() {
-            const panY = canvas.height - 60;
-            const panWidth = canvas.width - 80;
-            const panHeight = 25;
-            const panX = 40;
-            
-            // Pan shadow
-            ctx.beginPath();
-            ctx.ellipse(canvas.width / 2, panY + panHeight + 5, panWidth / 2, 10, 0, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.fill();
-            
-            // Pan handle (left side)
-            ctx.fillStyle = '#2a2a2a';
-            ctx.fillRect(-10, panY + 5, 60, 12);
-            
-            // Handle grip
-            const handleGradient = ctx.createLinearGradient(-10, panY + 5, -10, panY + 17);
-            handleGradient.addColorStop(0, '#1a1a1a');
-            handleGradient.addColorStop(0.5, '#333');
-            handleGradient.addColorStop(1, '#1a1a1a');
-            ctx.fillStyle = handleGradient;
-            ctx.fillRect(-10, panY + 5, 50, 12);
-            
-            // Pan body
-            ctx.beginPath();
-            ctx.ellipse(canvas.width / 2, panY + panHeight / 2, panWidth / 2, panHeight, 0, 0, Math.PI * 2);
-            
-            const panGradient = ctx.createRadialGradient(canvas.width / 2, panY, 0, canvas.width / 2, panY + panHeight / 2, panWidth / 2);
-            panGradient.addColorStop(0, '#4a4a4a');
-            panGradient.addColorStop(0.3, '#3a3a3a');
-            panGradient.addColorStop(0.7, '#2a2a2a');
-            panGradient.addColorStop(1, '#1a1a1a');
-            
-            ctx.fillStyle = panGradient;
-            ctx.fill();
-            
-            // Pan inner surface (darker)
-            ctx.beginPath();
-            ctx.ellipse(canvas.width / 2, panY + panHeight / 2, panWidth / 2 - 8, panHeight - 5, 0, 0, Math.PI * 2);
-            
-            const innerGradient = ctx.createRadialGradient(canvas.width / 2, panY, 0, canvas.width / 2, panY + panHeight / 2, panWidth / 2 - 8);
-            innerGradient.addColorStop(0, '#2d2d2d');
-            innerGradient.addColorStop(1, '#1a1a1a');
-            
-            ctx.fillStyle = innerGradient;
-            ctx.fill();
-            
-            // Oil sheen / reflection
-            ctx.beginPath();
-            ctx.ellipse(canvas.width / 2 - 50, panY + 5, 60, 8, -0.2, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.fill();
-            
-            // Pan rim highlight
-            ctx.beginPath();
-            ctx.ellipse(canvas.width / 2, panY + panHeight / 2, panWidth / 2, panHeight, 0, Math.PI, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-        
-        function drawTreeBranch() {
-            const branchY = BRANCH_Y;
-            
-            // Main branch
-            ctx.beginPath();
-            ctx.moveTo(-20, branchY + 15);
-            ctx.quadraticCurveTo(100, branchY - 5, canvas.width / 2, branchY);
-            ctx.quadraticCurveTo(canvas.width - 100, branchY + 10, canvas.width + 20, branchY - 5);
-            ctx.lineTo(canvas.width + 20, branchY + 25);
-            ctx.quadraticCurveTo(canvas.width - 100, branchY + 30, canvas.width / 2, branchY + 20);
-            ctx.quadraticCurveTo(100, branchY + 25, -20, branchY + 35);
-            ctx.closePath();
-            
-            const branchGradient = ctx.createLinearGradient(0, branchY - 5, 0, branchY + 35);
-            branchGradient.addColorStop(0, '#8B5A2B');
-            branchGradient.addColorStop(0.3, '#6B4423');
-            branchGradient.addColorStop(0.7, '#5D3A1A');
-            branchGradient.addColorStop(1, '#4A2F15');
-            
-            ctx.fillStyle = branchGradient;
-            ctx.fill();
-            
-            // Bark texture
-            ctx.strokeStyle = '#3d2510';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < 15; i++) {
-                const x = 30 + i * 32;
-                ctx.beginPath();
-                ctx.moveTo(x, branchY + 5);
-                ctx.lineTo(x + 5, branchY + 18);
-                ctx.stroke();
-            }
-            
-            // Branch highlight
-            ctx.beginPath();
-            ctx.moveTo(0, branchY + 8);
-            ctx.quadraticCurveTo(canvas.width / 2, branchY, canvas.width, branchY + 5);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-        }
-        
-        function drawNest() {
-            const nestX = canvas.width / 2;
-            const nestY = NEST_Y;
-            const nestWidth = NEST_WIDTH;
-            const nestHeight = 35;
-            
-            // Nest shadow on branch
-            ctx.beginPath();
-            ctx.ellipse(nestX, nestY + nestHeight + 5, nestWidth / 2 + 5, 8, 0, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.fill();
-            
-            // Nest base (outer twigs)
-            ctx.beginPath();
-            ctx.ellipse(nestX, nestY + nestHeight / 2, nestWidth / 2 + 10, nestHeight / 2 + 5, 0, 0, Math.PI * 2);
-            
-            const outerNestGradient = ctx.createRadialGradient(nestX, nestY, 0, nestX, nestY + nestHeight / 2, nestWidth / 2 + 10);
-            outerNestGradient.addColorStop(0, '#8B7355');
-            outerNestGradient.addColorStop(0.5, '#6B5344');
-            outerNestGradient.addColorStop(1, '#4A3728');
-            
-            ctx.fillStyle = outerNestGradient;
-            ctx.fill();
-            
-            // Draw individual twigs around nest
-            ctx.strokeStyle = '#5D4037';
-            ctx.lineWidth = 2;
+            // Glowing embers at bottom
             for (let i = 0; i < 30; i++) {
-                const angle = (i / 30) * Math.PI * 2;
-                const innerR = nestWidth / 2 - 5;
-                const outerR = nestWidth / 2 + 15;
-                const startX = nestX + Math.cos(angle) * innerR;
-                const startY = nestY + nestHeight / 2 + Math.sin(angle) * (nestHeight / 2 - 3);
-                const endX = nestX + Math.cos(angle + 0.2) * outerR;
-                const endY = nestY + nestHeight / 2 + Math.sin(angle + 0.2) * (nestHeight / 2 + 8);
+                const x = Math.random() * canvas.width;
+                const y = canvas.height - 10 - Math.random() * 20;
+                const size = 3 + Math.random() * 6;
+                const brightness = 0.5 + Math.random() * 0.5;
+                
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+                gradient.addColorStop(0, `rgba(255, 200, 50, ${brightness})`);
+                gradient.addColorStop(0.5, `rgba(255, 100, 0, ${brightness * 0.7})`);
+                gradient.addColorStop(1, `rgba(200, 50, 0, 0)`);
                 
                 ctx.beginPath();
-                ctx.moveTo(startX, startY);
-                ctx.quadraticCurveTo(startX + (Math.random() - 0.5) * 10, startY + (Math.random() - 0.5) * 10, endX, endY);
-                ctx.stroke();
-            }
-            
-            // Nest inner bowl
-            ctx.beginPath();
-            ctx.ellipse(nestX, nestY + nestHeight / 2 + 5, nestWidth / 2 - 5, nestHeight / 2 - 8, 0, 0, Math.PI * 2);
-            
-            const innerNestGradient = ctx.createRadialGradient(nestX, nestY + 5, 0, nestX, nestY + nestHeight / 2 + 5, nestWidth / 2 - 5);
-            innerNestGradient.addColorStop(0, '#3E2723');
-            innerNestGradient.addColorStop(1, '#2A1B18');
-            
-            ctx.fillStyle = innerNestGradient;
-            ctx.fill();
-            
-            // Soft lining in nest
-            ctx.beginPath();
-            ctx.ellipse(nestX, nestY + nestHeight / 2 + 8, nestWidth / 2 - 12, nestHeight / 2 - 12, 0, 0, Math.PI * 2);
-            
-            const liningGradient = ctx.createRadialGradient(nestX, nestY + 10, 0, nestX, nestY + nestHeight / 2 + 8, nestWidth / 2 - 12);
-            liningGradient.addColorStop(0, '#D7CCC8');
-            liningGradient.addColorStop(0.5, '#BCAAA4');
-            liningGradient.addColorStop(1, '#8D6E63');
-            
-            ctx.fillStyle = liningGradient;
-            ctx.fill();
-            
-            // Feather details in lining
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            for (let i = 0; i < 5; i++) {
-                const featherX = nestX - 20 + i * 10;
-                const featherY = nestY + nestHeight / 2 + 5;
-                ctx.beginPath();
-                ctx.ellipse(featherX, featherY, 6, 3, Math.random(), 0, Math.PI * 2);
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
                 ctx.fill();
             }
-        }
-        
-        function drawScene() {
-            // Draw fire at bottom
-            drawFire();
             
-            // Draw frying pan above fire
-            drawFryingPan();
+            // Fire glow effect
+            const glowGradient = ctx.createLinearGradient(0, FIRE_Y, 0, canvas.height);
+            glowGradient.addColorStop(0, 'rgba(255, 100, 0, 0)');
+            glowGradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.3)');
+            glowGradient.addColorStop(1, 'rgba(255, 50, 0, 0.5)');
             
-            // Draw tree branch
-            drawTreeBranch();
-            
-            // Draw nest on branch
-            drawNest();
+            ctx.fillStyle = glowGradient;
+            ctx.fillRect(0, FIRE_Y, canvas.width, canvas.height - FIRE_Y);
         }
         
         function gameLoop() {
             frameCount++;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Draw the scene
-            drawScene();
+            // Draw fire
+            updateAndDrawFire();
             
             // Draw pegs
             drawPegs();
@@ -577,7 +469,20 @@
                 
                 if (!finished) {
                     requestAnimationFrame(gameLoop);
+                } else {
+                    // Keep animating fire after game ends
+                    requestAnimationFrame(function animateFire() {
+                        frameCount++;
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        updateAndDrawFire();
+                        drawPegs();
+                        if (ball) ball.draw();
+                        if (gameOver) requestAnimationFrame(animateFire);
+                    });
                 }
+            } else if (!gameActive) {
+                // Animate fire when game not active
+                requestAnimationFrame(gameLoop);
             }
         }
         
@@ -588,21 +493,19 @@
             gameOver = false;
             ball = new Ball();
             gameActive = true;
-            statusText.textContent = 'Click to drop the egg!';
+            statusText.textContent = 'Click to drop the ball!';
             statusText.style.color = '#667eea';
-            gameLoop();
         });
         
         canvas.addEventListener('click', function() {
             if (gameActive && ball && !ball.dropped) {
                 ball.drop();
-                statusText.textContent = '🥚 Egg falling...';
+                statusText.textContent = '🔥 Falling...';
             }
         });
         
-        // Initial draw
-        drawScene();
-        drawPegs();
+        // Start animation
+        gameLoop();
     </script>
 </body>
 </html>
