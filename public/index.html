@@ -87,14 +87,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔥 Ball Drop Game 🔥</h1>
+        <h1>🌋 Ball Drop Game 🌋</h1>
         <canvas id="gameCanvas" width="500" height="650"></canvas>
         <div class="controls">
             <button id="startButton">Start Game</button>
         </div>
         <div class="info">
             <p class="status" id="status">Click Start Game!</p>
-            <p class="difficulty">🍗 Dodge the wings! Avoid the fire! 🔥</p>
+            <p class="difficulty">🍗 Dodge the wings! Land in the volcano! 🌋</p>
             <p>Games: <span id="gamesPlayed">0</span></p>
         </div>
     </div>
@@ -109,20 +109,26 @@
         let gameActive = false;
         let gamesPlayed = 0;
         let gameOver = false;
+        let playerWon = false;
+        let fireIntensity = 1;
         
         const BALL_RADIUS = 12;
         const BALL_SPEED = 6;
         const GRAVITY = 0.3;
         const FIRE_Y = canvas.height - 80;
+        const VOLCANO_X = canvas.width / 2;
+        const VOLCANO_WIDTH = 80;
+        const VOLCANO_Y = FIRE_Y - 20;
 
         const PEG_RADIUS = 10;
-        const PEG_ROWS = 8;
+        const PEG_ROWS = 7;
         const PEG_COLS = 10;
         const pegs = [];
         
-        // Fire particles
-        const fireParticles = [];
-        const smokeParticles = [];
+        let fireParticles = [];
+        let smokeParticles = [];
+        let waterParticles = [];
+        let steamParticles = [];
         
         function createPegs() {
             const startY = 100;
@@ -143,7 +149,6 @@
         }
         createPegs();
         
-        // Initialize fire particles
         function createFireParticle() {
             return {
                 x: Math.random() * canvas.width,
@@ -152,8 +157,7 @@
                 speedY: -1 - Math.random() * 3,
                 speedX: (Math.random() - 0.5) * 2,
                 life: 1,
-                decay: 0.01 + Math.random() * 0.02,
-                hue: Math.random() * 60 // 0-60 for red to yellow
+                decay: 0.01 + Math.random() * 0.02
             };
         }
         
@@ -169,13 +173,46 @@
             };
         }
         
-        // Fill initial particles
-        for (let i = 0; i < 100; i++) {
-            fireParticles.push(createFireParticle());
+        function createWaterParticle(x, y) {
+            const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.5;
+            const speed = 5 + Math.random() * 8;
+            return {
+                x: x,
+                y: y,
+                size: 4 + Math.random() * 6,
+                speedX: Math.cos(angle) * speed,
+                speedY: Math.sin(angle) * speed,
+                life: 1,
+                decay: 0.015
+            };
         }
-        for (let i = 0; i < 30; i++) {
-            smokeParticles.push(createSmokeParticle());
+        
+        function createSteamParticle(x, y) {
+            return {
+                x: x + (Math.random() - 0.5) * 100,
+                y: y,
+                size: 20 + Math.random() * 30,
+                speedY: -2 - Math.random() * 2,
+                speedX: (Math.random() - 0.5) * 2,
+                life: 1,
+                decay: 0.02
+            };
         }
+        
+        function initParticles() {
+            fireParticles = [];
+            smokeParticles = [];
+            waterParticles = [];
+            steamParticles = [];
+            
+            for (let i = 0; i < 100; i++) {
+                fireParticles.push(createFireParticle());
+            }
+            for (let i = 0; i < 30; i++) {
+                smokeParticles.push(createSmokeParticle());
+            }
+        }
+        initParticles();
         
         let frameCount = 0;
         
@@ -188,6 +225,7 @@
                 this.radius = BALL_RADIUS;
                 this.dropped = false;
                 this.rotation = 0;
+                this.sprayingWater = false;
             }
             
             update() {
@@ -196,7 +234,7 @@
                     if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
                         this.vx *= -1;
                     }
-                } else {
+                } else if (!this.sprayingWater) {
                     this.vy += GRAVITY;
                     this.x += this.vx;
                     this.y += this.vy;
@@ -231,7 +269,7 @@
                         this.vx = -Math.abs(this.vx) * 0.8;
                     }
                     
-                    if (this.y + this.radius >= FIRE_Y) {
+                    if (this.y + this.radius >= VOLCANO_Y) {
                         this.checkWin();
                         return true;
                     }
@@ -244,35 +282,40 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.rotation);
                 
-                // Shadow
                 ctx.beginPath();
                 ctx.arc(4, 4, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.fill();
                 
-                // Ball
                 ctx.beginPath();
                 ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                 
-                const gradient = ctx.createRadialGradient(-4, -4, 0, 0, 0, this.radius);
-                gradient.addColorStop(0, '#ff6b6b');
-                gradient.addColorStop(0.3, '#ee5a52');
-                gradient.addColorStop(0.7, '#dc3545');
-                gradient.addColorStop(1, '#991b1b');
+                let gradient;
+                if (this.sprayingWater) {
+                    gradient = ctx.createRadialGradient(-4, -4, 0, 0, 0, this.radius);
+                    gradient.addColorStop(0, '#60a5fa');
+                    gradient.addColorStop(0.3, '#3b82f6');
+                    gradient.addColorStop(0.7, '#2563eb');
+                    gradient.addColorStop(1, '#1d4ed8');
+                } else {
+                    gradient = ctx.createRadialGradient(-4, -4, 0, 0, 0, this.radius);
+                    gradient.addColorStop(0, '#ff6b6b');
+                    gradient.addColorStop(0.3, '#ee5a52');
+                    gradient.addColorStop(0.7, '#dc3545');
+                    gradient.addColorStop(1, '#991b1b');
+                }
                 
                 ctx.fillStyle = gradient;
                 ctx.fill();
                 
-                // Highlight
                 ctx.beginPath();
                 ctx.arc(-4, -4, this.radius * 0.4, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
                 ctx.fill();
                 
-                // Outline
                 ctx.beginPath();
                 ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.strokeStyle = '#991b1b';
+                ctx.strokeStyle = this.sprayingWater ? '#1d4ed8' : '#991b1b';
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 
@@ -284,8 +327,18 @@
             }
             
             checkWin() {
-                statusText.textContent = '🔥 Burned! Try again! 🔥';
-                statusText.style.color = '#dc3545';
+                const distance = Math.abs(this.x - VOLCANO_X);
+                if (distance < VOLCANO_WIDTH / 2) {
+                    statusText.textContent = '💧 SPLASH! Fire extinguished! 💧';
+                    statusText.style.color = '#3b82f6';
+                    playerWon = true;
+                    this.sprayingWater = true;
+                    this.y = VOLCANO_Y - 10;
+                } else {
+                    statusText.textContent = '🔥 Burned! Try again! 🔥';
+                    statusText.style.color = '#dc3545';
+                    playerWon = false;
+                }
                 gameActive = false;
                 gameOver = true;
                 startButton.disabled = false;
@@ -335,8 +388,82 @@
             }
         }
         
+        function drawVolcano() {
+            const vx = VOLCANO_X;
+            const vy = VOLCANO_Y;
+            const width = VOLCANO_WIDTH;
+            
+            ctx.beginPath();
+            ctx.moveTo(vx - width - 30, canvas.height);
+            ctx.lineTo(vx - width / 2, vy);
+            ctx.lineTo(vx + width / 2, vy);
+            ctx.lineTo(vx + width + 30, canvas.height);
+            ctx.closePath();
+            
+            const volcanoGradient = ctx.createLinearGradient(vx - width, vy, vx + width, vy);
+            volcanoGradient.addColorStop(0, '#4a3728');
+            volcanoGradient.addColorStop(0.3, '#6b4423');
+            volcanoGradient.addColorStop(0.5, '#8b5a2b');
+            volcanoGradient.addColorStop(0.7, '#6b4423');
+            volcanoGradient.addColorStop(1, '#4a3728');
+            
+            ctx.fillStyle = volcanoGradient;
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.ellipse(vx, vy, width / 2 + 10, 15, 0, 0, Math.PI * 2);
+            
+            const rimGradient = ctx.createRadialGradient(vx, vy, 0, vx, vy, width / 2 + 10);
+            rimGradient.addColorStop(0, '#8b4513');
+            rimGradient.addColorStop(0.7, '#654321');
+            rimGradient.addColorStop(1, '#3d2817');
+            
+            ctx.fillStyle = rimGradient;
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.ellipse(vx, vy, width / 2, 12, 0, 0, Math.PI * 2);
+            
+            const craterGradient = ctx.createRadialGradient(vx, vy, 0, vx, vy, width / 2);
+            craterGradient.addColorStop(0, '#1a0a00');
+            craterGradient.addColorStop(0.5, '#2d1500');
+            craterGradient.addColorStop(1, '#4a2500');
+            
+            ctx.fillStyle = craterGradient;
+            ctx.fill();
+            
+            if (fireIntensity > 0.1) {
+                ctx.beginPath();
+                ctx.ellipse(vx, vy + 3, width / 2 - 5, 8, 0, 0, Math.PI * 2);
+                
+                const lavaGradient = ctx.createRadialGradient(vx, vy + 3, 0, vx, vy + 3, width / 2 - 5);
+                lavaGradient.addColorStop(0, `rgba(255, 200, 0, ${fireIntensity * 0.8})`);
+                lavaGradient.addColorStop(0.5, `rgba(255, 100, 0, ${fireIntensity * 0.6})`);
+                lavaGradient.addColorStop(1, `rgba(200, 50, 0, ${fireIntensity * 0.3})`);
+                
+                ctx.fillStyle = lavaGradient;
+                ctx.fill();
+            }
+            
+            ctx.fillStyle = '#3d2817';
+            for (let i = 0; i < 8; i++) {
+                const rx = vx - width + 20 + i * 25;
+                const ry = vy + 20 + Math.sin(i) * 10;
+                ctx.beginPath();
+                ctx.arc(rx, ry, 5 + Math.random() * 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.beginPath();
+            ctx.ellipse(vx, vy - 2, width / 2 + 8, 10, 0, Math.PI, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
         function updateAndDrawFire() {
-            // Update and draw fire particles
+            if (fireIntensity <= 0) return;
+            
             for (let i = 0; i < fireParticles.length; i++) {
                 const p = fireParticles[i];
                 
@@ -350,35 +477,30 @@
                     continue;
                 }
                 
-                // Draw fire particle
-                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * fireIntensity);
                 
                 if (p.life > 0.7) {
-                    // White/yellow core
-                    gradient.addColorStop(0, `rgba(255, 255, 255, ${p.life})`);
-                    gradient.addColorStop(0.2, `rgba(255, 255, 100, ${p.life * 0.9})`);
-                    gradient.addColorStop(0.5, `rgba(255, 150, 0, ${p.life * 0.7})`);
+                    gradient.addColorStop(0, `rgba(255, 255, 255, ${p.life * fireIntensity})`);
+                    gradient.addColorStop(0.2, `rgba(255, 255, 100, ${p.life * 0.9 * fireIntensity})`);
+                    gradient.addColorStop(0.5, `rgba(255, 150, 0, ${p.life * 0.7 * fireIntensity})`);
                     gradient.addColorStop(1, `rgba(255, 50, 0, 0)`);
                 } else if (p.life > 0.4) {
-                    // Orange/red
-                    gradient.addColorStop(0, `rgba(255, 200, 50, ${p.life})`);
-                    gradient.addColorStop(0.3, `rgba(255, 100, 0, ${p.life * 0.8})`);
-                    gradient.addColorStop(0.7, `rgba(200, 50, 0, ${p.life * 0.5})`);
+                    gradient.addColorStop(0, `rgba(255, 200, 50, ${p.life * fireIntensity})`);
+                    gradient.addColorStop(0.3, `rgba(255, 100, 0, ${p.life * 0.8 * fireIntensity})`);
+                    gradient.addColorStop(0.7, `rgba(200, 50, 0, ${p.life * 0.5 * fireIntensity})`);
                     gradient.addColorStop(1, `rgba(100, 0, 0, 0)`);
                 } else {
-                    // Dying ember
-                    gradient.addColorStop(0, `rgba(255, 100, 0, ${p.life})`);
-                    gradient.addColorStop(0.5, `rgba(150, 30, 0, ${p.life * 0.6})`);
+                    gradient.addColorStop(0, `rgba(255, 100, 0, ${p.life * fireIntensity})`);
+                    gradient.addColorStop(0.5, `rgba(150, 30, 0, ${p.life * 0.6 * fireIntensity})`);
                     gradient.addColorStop(1, `rgba(50, 0, 0, 0)`);
                 }
                 
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, p.size * fireIntensity, 0, Math.PI * 2);
                 ctx.fillStyle = gradient;
                 ctx.fill();
             }
             
-            // Update and draw smoke particles
             for (let i = 0; i < smokeParticles.length; i++) {
                 const p = smokeParticles[i];
                 
@@ -392,10 +514,9 @@
                     continue;
                 }
                 
-                // Draw smoke
                 const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-                gradient.addColorStop(0, `rgba(80, 80, 80, ${p.life * 0.3})`);
-                gradient.addColorStop(0.5, `rgba(60, 60, 60, ${p.life * 0.2})`);
+                gradient.addColorStop(0, `rgba(80, 80, 80, ${p.life * 0.3 * fireIntensity})`);
+                gradient.addColorStop(0.5, `rgba(60, 60, 60, ${p.life * 0.2 * fireIntensity})`);
                 gradient.addColorStop(1, `rgba(40, 40, 40, 0)`);
                 
                 ctx.beginPath();
@@ -404,16 +525,17 @@
                 ctx.fill();
             }
             
-            // Draw base flames (more intense at bottom)
             for (let i = 0; i < 20; i++) {
                 const x = (canvas.width / 20) * i + Math.sin(frameCount * 0.1 + i) * 10;
-                const flameHeight = 40 + Math.sin(frameCount * 0.15 + i * 0.5) * 20;
+                const flameHeight = (40 + Math.sin(frameCount * 0.15 + i * 0.5) * 20) * fireIntensity;
                 const flameWidth = 25 + Math.sin(frameCount * 0.1 + i) * 5;
                 
+                if (flameHeight < 5) continue;
+                
                 const gradient = ctx.createLinearGradient(x, canvas.height, x, canvas.height - flameHeight);
-                gradient.addColorStop(0, 'rgba(255, 100, 0, 0.9)');
-                gradient.addColorStop(0.3, 'rgba(255, 200, 0, 0.8)');
-                gradient.addColorStop(0.6, 'rgba(255, 100, 0, 0.6)');
+                gradient.addColorStop(0, `rgba(255, 100, 0, ${0.9 * fireIntensity})`);
+                gradient.addColorStop(0.3, `rgba(255, 200, 0, ${0.8 * fireIntensity})`);
+                gradient.addColorStop(0.6, `rgba(255, 100, 0, ${0.6 * fireIntensity})`);
                 gradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
                 
                 ctx.beginPath();
@@ -425,65 +547,115 @@
                 ctx.fill();
             }
             
-            // Glowing embers at bottom
-            for (let i = 0; i < 30; i++) {
-                const x = Math.random() * canvas.width;
-                const y = canvas.height - 10 - Math.random() * 20;
-                const size = 3 + Math.random() * 6;
-                const brightness = 0.5 + Math.random() * 0.5;
+            if (fireIntensity > 0.3) {
+                for (let i = 0; i < 15; i++) {
+                    const x = 30 + (i * 30);
+                    const y = canvas.height - 10 - Math.random() * 20;
+                    const size = (3 + Math.random() * 6) * fireIntensity;
+                    const brightness = (0.5 + Math.random() * 0.5) * fireIntensity;
+                    
+                    const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+                    gradient.addColorStop(0, `rgba(255, 200, 50, ${brightness})`);
+                    gradient.addColorStop(0.5, `rgba(255, 100, 0, ${brightness * 0.7})`);
+                    gradient.addColorStop(1, 'rgba(200, 50, 0, 0)');
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                }
+            }
+            
+            const glowGradient = ctx.createLinearGradient(0, FIRE_Y, 0, canvas.height);
+            glowGradient.addColorStop(0, 'rgba(255, 100, 0, 0)');
+            glowGradient.addColorStop(0.5, `rgba(255, 100, 0, ${0.3 * fireIntensity})`);
+            glowGradient.addColorStop(1, `rgba(255, 50, 0, ${0.5 * fireIntensity})`);
+            
+            ctx.fillStyle = glowGradient;
+            ctx.fillRect(0, FIRE_Y, canvas.width, canvas.height - FIRE_Y);
+        }
+        
+        function updateAndDrawWater() {
+            if (!playerWon || !ball) return;
+            
+            if (fireIntensity > 0) {
+                for (let i = 0; i < 5; i++) {
+                    waterParticles.push(createWaterParticle(ball.x, ball.y));
+                }
+                fireIntensity -= 0.008;
+                if (fireIntensity < 0) fireIntensity = 0;
+            }
+            
+            if (fireIntensity > 0.1 && Math.random() < 0.3) {
+                steamParticles.push(createSteamParticle(ball.x, FIRE_Y));
+            }
+            
+            for (let i = waterParticles.length - 1; i >= 0; i--) {
+                const p = waterParticles[i];
                 
-                const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
-                gradient.addColorStop(0, `rgba(255, 200, 50, ${brightness})`);
-                gradient.addColorStop(0.5, `rgba(255, 100, 0, ${brightness * 0.7})`);
-                gradient.addColorStop(1, `rgba(200, 50, 0, 0)`);
+                p.speedY += 0.2;
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.life -= p.decay;
+                
+                if (p.life <= 0 || p.y > canvas.height) {
+                    waterParticles.splice(i, 1);
+                    continue;
+                }
+                
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                gradient.addColorStop(0, `rgba(150, 200, 255, ${p.life})`);
+                gradient.addColorStop(0.5, `rgba(100, 150, 255, ${p.life * 0.8})`);
+                gradient.addColorStop(1, `rgba(50, 100, 200, 0)`);
                 
                 ctx.beginPath();
-                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                 ctx.fillStyle = gradient;
                 ctx.fill();
             }
             
-            // Fire glow effect
-            const glowGradient = ctx.createLinearGradient(0, FIRE_Y, 0, canvas.height);
-            glowGradient.addColorStop(0, 'rgba(255, 100, 0, 0)');
-            glowGradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.3)');
-            glowGradient.addColorStop(1, 'rgba(255, 50, 0, 0.5)');
-            
-            ctx.fillStyle = glowGradient;
-            ctx.fillRect(0, FIRE_Y, canvas.width, canvas.height - FIRE_Y);
+            for (let i = steamParticles.length - 1; i >= 0; i--) {
+                const p = steamParticles[i];
+                
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.life -= p.decay;
+                p.size *= 1.02;
+                
+                if (p.life <= 0) {
+                    steamParticles.splice(i, 1);
+                    continue;
+                }
+                
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                gradient.addColorStop(0, `rgba(200, 200, 200, ${p.life * 0.4})`);
+                gradient.addColorStop(0.5, `rgba(180, 180, 180, ${p.life * 0.2})`);
+                gradient.addColorStop(1, 'rgba(150, 150, 150, 0)');
+                
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
         }
         
         function gameLoop() {
             frameCount++;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Draw fire
             updateAndDrawFire();
-            
-            // Draw pegs
+            drawVolcano();
+            updateAndDrawWater();
             drawPegs();
             
-            if (ball && gameActive) {
-                const finished = ball.update();
-                ball.draw();
-                
-                if (!finished) {
-                    requestAnimationFrame(gameLoop);
-                } else {
-                    // Keep animating fire after game ends
-                    requestAnimationFrame(function animateFire() {
-                        frameCount++;
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        updateAndDrawFire();
-                        drawPegs();
-                        if (ball) ball.draw();
-                        if (gameOver) requestAnimationFrame(animateFire);
-                    });
+            if (ball) {
+                if (gameActive) {
+                    ball.update();
                 }
-            } else if (!gameActive) {
-                // Animate fire when game not active
-                requestAnimationFrame(gameLoop);
+                ball.draw();
             }
+            
+            requestAnimationFrame(gameLoop);
         }
         
         startButton.addEventListener('click', function() {
@@ -491,6 +663,11 @@
             gamesPlayed++;
             gamesPlayedSpan.textContent = gamesPlayed;
             gameOver = false;
+            playerWon = false;
+            fireIntensity = 1;
+            waterParticles = [];
+            steamParticles = [];
+            initParticles();
             ball = new Ball();
             gameActive = true;
             statusText.textContent = 'Click to drop the ball!';
@@ -500,11 +677,10 @@
         canvas.addEventListener('click', function() {
             if (gameActive && ball && !ball.dropped) {
                 ball.drop();
-                statusText.textContent = '🔥 Falling...';
+                statusText.textContent = '🌋 Falling...';
             }
         });
         
-        // Start animation
         gameLoop();
     </script>
 </body>
