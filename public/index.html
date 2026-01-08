@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ball Drop Game - 3D</title>
+    <title>Egg Drop Game</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -87,14 +87,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎯 3D Ball Drop Game</h1>
+        <h1>🍗 Egg Drop Game 🥚</h1>
         <canvas id="gameCanvas" width="500" height="600"></canvas>
         <div class="controls">
             <button id="startButton">Start Game</button>
         </div>
         <div class="info">
             <p class="status" id="status">Click Start Game!</p>
-            <p class="difficulty">⚡ HARD MODE: Fast Ball + Small Hole</p>
+            <p class="difficulty">🍗 Dodge the wings! Land in the nest! 🪹</p>
             <p>Games: <span id="gamesPlayed">0</span></p>
         </div>
     </div>
@@ -110,13 +110,13 @@
         let gamesPlayed = 0;
         let gameOver = false;
         
-        const BALL_RADIUS = 15;
+        const BALL_RADIUS = 18;
         const BALL_SPEED = 8;
         const GRAVITY = 0.8;
         const HOLE_WIDTH = 50;
         const HOLE_Y = canvas.height - 40;
 
-        const PEG_RADIUS = 8;
+        const PEG_RADIUS = 12;
         const PEG_ROWS = 8;
         const PEG_COLS = 9;
         const pegs = [];
@@ -133,7 +133,8 @@
                 for (let col = 0; col < cols; col++) {
                     const x = 25 + offsetX + col * spacingX;
                     const y = startY + row * spacingY;
-                    pegs.push({ x, y, radius: PEG_RADIUS });
+                    const rotation = Math.random() * Math.PI * 2;
+                    pegs.push({ x, y, radius: PEG_RADIUS, rotation });
                 }
             }
         }
@@ -147,6 +148,7 @@
                 this.vy = 0;
                 this.radius = BALL_RADIUS;
                 this.dropped = false;
+                this.rotation = 0;
             }
             
             update() {
@@ -159,6 +161,7 @@
                     this.vy += GRAVITY;
                     this.x += this.vx;
                     this.y += this.vy;
+                    this.rotation += this.vx * 0.05;
                     
                     for (let peg of pegs) {
                         const dx = this.x - peg.x;
@@ -198,52 +201,42 @@
             }
             
             draw() {
-                const shadowOffset = 5;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
                 
+                // Shadow
                 ctx.beginPath();
-                ctx.arc(this.x + shadowOffset, this.y + shadowOffset, this.radius, 0, Math.PI * 2);
+                ctx.ellipse(4, 4, this.radius * 0.7, this.radius, 0, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.fill();
                 
+                // Egg shape
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.ellipse(0, 0, this.radius * 0.7, this.radius, 0, 0, Math.PI * 2);
                 
-                const gradient = ctx.createRadialGradient(
-                    this.x - this.radius/3, 
-                    this.y - this.radius/3, 
-                    0,
-                    this.x, 
-                    this.y, 
-                    this.radius
-                );
-                gradient.addColorStop(0, '#ff6b6b');
-                gradient.addColorStop(0.3, '#ee5a52');
-                gradient.addColorStop(0.7, '#dc3545');
-                gradient.addColorStop(1, '#991b1b');
+                const gradient = ctx.createRadialGradient(-5, -5, 0, 0, 0, this.radius);
+                gradient.addColorStop(0, '#fffef5');
+                gradient.addColorStop(0.5, '#f5e6c8');
+                gradient.addColorStop(1, '#e8d4a8');
                 
                 ctx.fillStyle = gradient;
                 ctx.fill();
                 
+                // Highlight
                 ctx.beginPath();
-                ctx.arc(this.x - this.radius/4, this.y - this.radius/4, this.radius/3, 0, Math.PI * 2);
-                const highlight = ctx.createRadialGradient(
-                    this.x - this.radius/4, 
-                    this.y - this.radius/4, 
-                    0,
-                    this.x - this.radius/4, 
-                    this.y - this.radius/4, 
-                    this.radius/3
-                );
-                highlight.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-                highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                ctx.fillStyle = highlight;
+                ctx.ellipse(-5, -8, 6, 8, -0.3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
                 ctx.fill();
                 
+                // Outline
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.strokeStyle = '#991b1b';
-                ctx.lineWidth = 2;
+                ctx.ellipse(0, 0, this.radius * 0.7, this.radius, 0, 0, Math.PI * 2);
+                ctx.strokeStyle = '#d4c4a4';
+                ctx.lineWidth = 1.5;
                 ctx.stroke();
+                
+                ctx.restore();
             }
             
             drop() {
@@ -254,10 +247,10 @@
                 const holeCenter = canvas.width / 2;
                 const distance = Math.abs(this.x - holeCenter);
                 if (distance < HOLE_WIDTH / 2) {
-                    statusText.textContent = '🎉 AMAZING! YOU WIN! 🎉';
+                    statusText.textContent = '🎉 EGG-CELLENT! YOU WIN! 🥚';
                     statusText.style.color = '#10b981';
                 } else {
-                    statusText.textContent = '❌ So close! Try again!';
+                    statusText.textContent = '🍳 Scrambled! Try again!';
                     statusText.style.color = '#dc3545';
                 }
                 gameActive = false;
@@ -266,50 +259,67 @@
             }
         }
         
+        function drawChickenWing(x, y, radius, rotation) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            
+            // Shadow
+            ctx.beginPath();
+            ctx.ellipse(3, 3, radius * 1.2, radius * 0.6, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            
+            // Wing body
+            ctx.beginPath();
+            ctx.ellipse(0, 0, radius * 1.2, radius * 0.6, 0, 0, Math.PI * 2);
+            
+            const gradient = ctx.createRadialGradient(-3, -2, 0, 0, 0, radius * 1.2);
+            gradient.addColorStop(0, '#e8a849');
+            gradient.addColorStop(0.5, '#c46d1d');
+            gradient.addColorStop(1, '#8b4513');
+            
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // Highlight
+            ctx.beginPath();
+            ctx.ellipse(-radius * 0.4, -radius * 0.15, radius * 0.35, radius * 0.2, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 200, 100, 0.5)';
+            ctx.fill();
+            
+            // Bone
+            ctx.beginPath();
+            ctx.ellipse(radius * 1.1, 0, radius * 0.25, radius * 0.15, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#f5f5dc';
+            ctx.fill();
+            ctx.strokeStyle = '#d4c8a0';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+        
         function drawPegs() {
             for (let peg of pegs) {
-                ctx.beginPath();
-                ctx.arc(peg.x + 3, peg.y + 3, peg.radius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                ctx.fill();
-                
-                const gradient = ctx.createRadialGradient(
-                    peg.x - peg.radius/3, peg.y - peg.radius/3, 0,
-                    peg.x, peg.y, peg.radius
-                );
-                gradient.addColorStop(0, '#a0a0a0');
-                gradient.addColorStop(0.5, '#707070');
-                gradient.addColorStop(1, '#404040');
-                
-                ctx.beginPath();
-                ctx.arc(peg.x, peg.y, peg.radius, 0, Math.PI * 2);
-                ctx.fillStyle = gradient;
-                ctx.fill();
-                
-                ctx.beginPath();
-                ctx.arc(peg.x - peg.radius/3, peg.y - peg.radius/3, peg.radius/3, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                ctx.fill();
+                drawChickenWing(peg.x, peg.y, peg.radius, peg.rotation);
             }
         }
         
         function draw3DHole() {
             const center = canvas.width / 2;
             
-            ctx.fillStyle = '#000';
+            // Nest border
+            ctx.fillStyle = '#3e2723';
             ctx.fillRect(center - HOLE_WIDTH/2 - 5, HOLE_Y - 5, HOLE_WIDTH + 10, 40);
             
-            const holeGradient = ctx.createLinearGradient(
-                center - HOLE_WIDTH/2, 
-                HOLE_Y, 
-                center + HOLE_WIDTH/2, 
-                HOLE_Y
-            );
-            holeGradient.addColorStop(0, '#1a5f3f');
-            holeGradient.addColorStop(0.5, '#10b981');
-            holeGradient.addColorStop(1, '#1a5f3f');
+            // Nest
+            const nestGradient = ctx.createLinearGradient(center - HOLE_WIDTH/2, HOLE_Y, center + HOLE_WIDTH/2, HOLE_Y);
+            nestGradient.addColorStop(0, '#5d4037');
+            nestGradient.addColorStop(0.5, '#8d6e63');
+            nestGradient.addColorStop(1, '#5d4037');
             
-            ctx.fillStyle = holeGradient;
+            ctx.fillStyle = nestGradient;
             ctx.fillRect(center - HOLE_WIDTH / 2, HOLE_Y, HOLE_WIDTH, 30);
             
             ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
@@ -317,15 +327,70 @@
             
             ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
             ctx.shadowBlur = 3;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 16px Arial';
+            ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('WIN!', center, HOLE_Y + 20);
+            ctx.fillText('🪹 NEST', center, HOLE_Y + 20);
             ctx.shadowBlur = 0;
             
-            const loseGradient = ctx.createLinearGradient(0, HOLE_Y, canvas.width, HOLE_Y);
-            loseGradient.addColorStop(0, '#b91c1c');
-            loseGradient.addColorStop(0.5, '#ef4444');
-            loseGradient.addColorStop(1, '#b91c1c');
+            // Frying pans (lose zones)
+            const panGradient = ctx.createLinearGradient(0, HOLE_Y, canvas.width, HOLE_Y);
+            panGradient.addColorStop(0, '#2c2c2c');
+            panGradient.addColorStop(0.5, '#4a4a4a');
+            panGradient.addColorStop(1, '#2c2c2c');
+            
+            ctx.fillStyle = panGradient;
+            ctx.fillRect(0, HOLE_Y, center - HOLE_WIDTH / 2, 30);
+            ctx.fillRect(center + HOLE_WIDTH / 2, HOLE_Y, canvas.width - (center + HOLE_WIDTH / 2), 30);
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.fillRect(0, HOLE_Y, center - HOLE_WIDTH / 2, 5);
+            ctx.fillRect(center + HOLE_WIDTH / 2, HOLE_Y, canvas.width - (center + HOLE_WIDTH / 2), 5);
+            
+            ctx.font = '16px Arial';
+            ctx.fillText('🍳', 60, HOLE_Y + 20);
+            ctx.fillText('🍳', canvas.width - 60, HOLE_Y + 20);
+        }
+        
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (gameOver) {
+                draw3DHole();
+            }
+            
+            drawPegs();
+            
+            if (ball && gameActive) {
+                const finished = ball.update();
+                ball.draw();
+                
+                if (!finished) {
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+        }
+        
+        startButton.addEventListener('click', function() {
+            startButton.disabled = true;
+            gamesPlayed++;
+            gamesPlayedSpan.textContent = gamesPlayed;
+            gameOver = false;
+            ball = new Ball();
+            gameActive = true;
+            statusText.textContent = 'Click to drop the egg!';
+            statusText.style.color = '#667eea';
+            gameLoop();
+        });
+        
+        canvas.addEventListener('click', function() {
+            if (gameActive && ball && !ball.dropped) {
+                ball.drop();
+                statusText.textContent = '🥚 Egg falling...';
+            }
+        });
+        
+        drawPegs();
+    </script>
+</body>
+</html>
