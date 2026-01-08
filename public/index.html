@@ -34,7 +34,7 @@
             border-radius: 10px;
             display: block;
             margin: 20px auto;
-            background: radial-gradient(circle at 30% 30%, #e0e7ff, #b8c5f0);
+            background: radial-gradient(circle at 30% 30%, #87CEEB, #5da4d9);
             cursor: pointer;
             box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);
         }
@@ -88,7 +88,7 @@
 <body>
     <div class="container">
         <h1>🍗 Egg Drop Game 🥚</h1>
-        <canvas id="gameCanvas" width="500" height="600"></canvas>
+        <canvas id="gameCanvas" width="500" height="650"></canvas>
         <div class="controls">
             <button id="startButton">Start Game</button>
         </div>
@@ -113,11 +113,12 @@
         const BALL_RADIUS = 10;
         const BALL_SPEED = 6;
         const GRAVITY = 0.3;
-        const HOLE_WIDTH = 60;
-        const HOLE_Y = canvas.height - 40;
+        const NEST_WIDTH = 70;
+        const BRANCH_Y = canvas.height - 100;
+        const NEST_Y = BRANCH_Y - 25;
 
         const PEG_RADIUS = 10;
-        const PEG_ROWS = 9;
+        const PEG_ROWS = 8;
         const PEG_COLS = 10;
         const pegs = [];
 
@@ -141,6 +142,7 @@
         createPegs();
         
         let frameCount = 0;
+        let fireFlicker = 0;
         
         class Ball {
             constructor() {
@@ -165,7 +167,6 @@
                     this.y += this.vy;
                     this.rotation += this.vx * 0.05;
                     
-                    // Limit max speed
                     if (this.vy > 10) this.vy = 10;
                     
                     for (let peg of pegs) {
@@ -173,17 +174,14 @@
                         const dy = this.y - peg.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
                         
-                        // Check collision and cooldown
                         if (distance < this.radius + peg.radius && frameCount - peg.lastHit > 10) {
                             peg.lastHit = frameCount;
                             
                             const angle = Math.atan2(dy, dx);
                             
-                            // Push egg completely outside peg
                             this.x = peg.x + Math.cos(angle) * (this.radius + peg.radius + 3);
                             this.y = peg.y + Math.sin(angle) * (this.radius + peg.radius + 3);
                             
-                            // Random bounce direction, but always moving down
                             this.vx = (Math.random() - 0.5) * 6;
                             this.vy = 2 + Math.random() * 2;
                         }
@@ -198,7 +196,7 @@
                         this.vx = -Math.abs(this.vx) * 0.8;
                     }
                     
-                    if (this.y + this.radius >= HOLE_Y) {
+                    if (this.y + this.radius >= NEST_Y + 15) {
                         this.checkWin();
                         return true;
                     }
@@ -211,13 +209,11 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.rotation);
                 
-                // Shadow
                 ctx.beginPath();
                 ctx.ellipse(3, 3, this.radius * 0.7, this.radius, 0, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.fill();
                 
-                // Egg shape
                 ctx.beginPath();
                 ctx.ellipse(0, 0, this.radius * 0.7, this.radius, 0, 0, Math.PI * 2);
                 
@@ -229,13 +225,11 @@
                 ctx.fillStyle = gradient;
                 ctx.fill();
                 
-                // Highlight
                 ctx.beginPath();
                 ctx.ellipse(-3, -5, 4, 5, -0.3, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
                 ctx.fill();
                 
-                // Outline
                 ctx.beginPath();
                 ctx.ellipse(0, 0, this.radius * 0.7, this.radius, 0, 0, Math.PI * 2);
                 ctx.strokeStyle = '#d4c4a4';
@@ -250,9 +244,9 @@
             }
             
             checkWin() {
-                const holeCenter = canvas.width / 2;
-                const distance = Math.abs(this.x - holeCenter);
-                if (distance < HOLE_WIDTH / 2) {
+                const nestCenter = canvas.width / 2;
+                const distance = Math.abs(this.x - nestCenter);
+                if (distance < NEST_WIDTH / 2) {
                     statusText.textContent = '🎉 EGG-CELLENT! YOU WIN! 🥚';
                     statusText.style.color = '#10b981';
                 } else {
@@ -270,13 +264,11 @@
             ctx.translate(x, y);
             ctx.rotate(rotation);
             
-            // Shadow
             ctx.beginPath();
             ctx.ellipse(2, 2, radius * 1.2, radius * 0.6, 0, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
             ctx.fill();
             
-            // Wing body
             ctx.beginPath();
             ctx.ellipse(0, 0, radius * 1.2, radius * 0.6, 0, 0, Math.PI * 2);
             
@@ -288,13 +280,11 @@
             ctx.fillStyle = gradient;
             ctx.fill();
             
-            // Highlight
             ctx.beginPath();
             ctx.ellipse(-radius * 0.4, -radius * 0.1, radius * 0.3, radius * 0.15, 0, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(255, 200, 100, 0.5)';
             ctx.fill();
             
-            // Bone
             ctx.beginPath();
             ctx.ellipse(radius * 1.0, 0, radius * 0.2, radius * 0.12, 0, 0, Math.PI * 2);
             ctx.fillStyle = '#f5f5dc';
@@ -312,75 +302,271 @@
             }
         }
         
-        function draw3DHole() {
-            const center = canvas.width / 2;
+        function drawFire() {
+            const fireX = canvas.width / 2;
+            const fireY = canvas.height - 25;
             
-            // Frying pans (lose zones) - draw first
-            const panGradient = ctx.createLinearGradient(0, HOLE_Y, canvas.width, HOLE_Y);
-            panGradient.addColorStop(0, '#2c2c2c');
-            panGradient.addColorStop(0.5, '#4a4a4a');
-            panGradient.addColorStop(1, '#2c2c2c');
+            fireFlicker = (fireFlicker + 0.15) % (Math.PI * 2);
+            
+            // Draw multiple flames
+            for (let i = 0; i < 7; i++) {
+                const offsetX = (i - 3) * 30;
+                const flameHeight = 35 + Math.sin(fireFlicker + i) * 8;
+                const flameWidth = 15 + Math.sin(fireFlicker + i * 0.5) * 3;
+                
+                // Outer flame (red/orange)
+                ctx.beginPath();
+                ctx.moveTo(fireX + offsetX - flameWidth, fireY);
+                ctx.quadraticCurveTo(fireX + offsetX - flameWidth/2, fireY - flameHeight * 0.6, fireX + offsetX, fireY - flameHeight);
+                ctx.quadraticCurveTo(fireX + offsetX + flameWidth/2, fireY - flameHeight * 0.6, fireX + offsetX + flameWidth, fireY);
+                ctx.closePath();
+                
+                const outerGradient = ctx.createLinearGradient(fireX + offsetX, fireY, fireX + offsetX, fireY - flameHeight);
+                outerGradient.addColorStop(0, '#ff4500');
+                outerGradient.addColorStop(0.3, '#ff6a00');
+                outerGradient.addColorStop(0.6, '#ff8c00');
+                outerGradient.addColorStop(1, '#ffcc00');
+                
+                ctx.fillStyle = outerGradient;
+                ctx.fill();
+                
+                // Inner flame (yellow/white)
+                const innerHeight = flameHeight * 0.6;
+                const innerWidth = flameWidth * 0.5;
+                
+                ctx.beginPath();
+                ctx.moveTo(fireX + offsetX - innerWidth, fireY);
+                ctx.quadraticCurveTo(fireX + offsetX - innerWidth/2, fireY - innerHeight * 0.6, fireX + offsetX, fireY - innerHeight);
+                ctx.quadraticCurveTo(fireX + offsetX + innerWidth/2, fireY - innerHeight * 0.6, fireX + offsetX + innerWidth, fireY);
+                ctx.closePath();
+                
+                const innerGradient = ctx.createLinearGradient(fireX + offsetX, fireY, fireX + offsetX, fireY - innerHeight);
+                innerGradient.addColorStop(0, '#ffcc00');
+                innerGradient.addColorStop(0.5, '#ffff66');
+                innerGradient.addColorStop(1, '#ffffcc');
+                
+                ctx.fillStyle = innerGradient;
+                ctx.fill();
+            }
+            
+            // Glowing coals at base
+            for (let i = 0; i < 12; i++) {
+                const coalX = fireX - 100 + i * 18 + Math.sin(fireFlicker + i) * 2;
+                const coalY = fireY + 5;
+                const coalRadius = 8 + Math.random() * 4;
+                
+                const coalGradient = ctx.createRadialGradient(coalX, coalY, 0, coalX, coalY, coalRadius);
+                coalGradient.addColorStop(0, '#ff6600');
+                coalGradient.addColorStop(0.5, '#cc3300');
+                coalGradient.addColorStop(1, '#330000');
+                
+                ctx.beginPath();
+                ctx.arc(coalX, coalY, coalRadius, 0, Math.PI * 2);
+                ctx.fillStyle = coalGradient;
+                ctx.fill();
+            }
+        }
+        
+        function drawFryingPan() {
+            const panY = canvas.height - 60;
+            const panWidth = canvas.width - 80;
+            const panHeight = 25;
+            const panX = 40;
+            
+            // Pan shadow
+            ctx.beginPath();
+            ctx.ellipse(canvas.width / 2, panY + panHeight + 5, panWidth / 2, 10, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            
+            // Pan handle (left side)
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(-10, panY + 5, 60, 12);
+            
+            // Handle grip
+            const handleGradient = ctx.createLinearGradient(-10, panY + 5, -10, panY + 17);
+            handleGradient.addColorStop(0, '#1a1a1a');
+            handleGradient.addColorStop(0.5, '#333');
+            handleGradient.addColorStop(1, '#1a1a1a');
+            ctx.fillStyle = handleGradient;
+            ctx.fillRect(-10, panY + 5, 50, 12);
+            
+            // Pan body
+            ctx.beginPath();
+            ctx.ellipse(canvas.width / 2, panY + panHeight / 2, panWidth / 2, panHeight, 0, 0, Math.PI * 2);
+            
+            const panGradient = ctx.createRadialGradient(canvas.width / 2, panY, 0, canvas.width / 2, panY + panHeight / 2, panWidth / 2);
+            panGradient.addColorStop(0, '#4a4a4a');
+            panGradient.addColorStop(0.3, '#3a3a3a');
+            panGradient.addColorStop(0.7, '#2a2a2a');
+            panGradient.addColorStop(1, '#1a1a1a');
             
             ctx.fillStyle = panGradient;
-            ctx.fillRect(0, HOLE_Y, center - HOLE_WIDTH / 2, 40);
-            ctx.fillRect(center + HOLE_WIDTH / 2, HOLE_Y, canvas.width - (center + HOLE_WIDTH / 2), 40);
+            ctx.fill();
             
-            // Pan shine
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-            ctx.fillRect(0, HOLE_Y, center - HOLE_WIDTH / 2, 8);
-            ctx.fillRect(center + HOLE_WIDTH / 2, HOLE_Y, canvas.width - (center + HOLE_WIDTH / 2), 8);
+            // Pan inner surface (darker)
+            ctx.beginPath();
+            ctx.ellipse(canvas.width / 2, panY + panHeight / 2, panWidth / 2 - 8, panHeight - 5, 0, 0, Math.PI * 2);
             
-            // Frying pan emojis
-            ctx.font = '20px Arial';
-            ctx.fillText('🍳', 50, HOLE_Y + 25);
-            ctx.fillText('🍳', 120, HOLE_Y + 25);
-            ctx.fillText('🍳', canvas.width - 70, HOLE_Y + 25);
-            ctx.fillText('🍳', canvas.width - 140, HOLE_Y + 25);
+            const innerGradient = ctx.createRadialGradient(canvas.width / 2, panY, 0, canvas.width / 2, panY + panHeight / 2, panWidth / 2 - 8);
+            innerGradient.addColorStop(0, '#2d2d2d');
+            innerGradient.addColorStop(1, '#1a1a1a');
             
-            // Nest border
-            ctx.fillStyle = '#2e1f1a';
-            ctx.fillRect(center - HOLE_WIDTH/2 - 8, HOLE_Y - 3, HOLE_WIDTH + 16, 46);
+            ctx.fillStyle = innerGradient;
+            ctx.fill();
             
-            // Nest
-            const nestGradient = ctx.createLinearGradient(center - HOLE_WIDTH/2, HOLE_Y, center + HOLE_WIDTH/2, HOLE_Y);
-            nestGradient.addColorStop(0, '#5d4037');
-            nestGradient.addColorStop(0.5, '#8d6e63');
-            nestGradient.addColorStop(1, '#5d4037');
+            // Oil sheen / reflection
+            ctx.beginPath();
+            ctx.ellipse(canvas.width / 2 - 50, panY + 5, 60, 8, -0.2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.fill();
             
-            ctx.fillStyle = nestGradient;
-            ctx.fillRect(center - HOLE_WIDTH / 2, HOLE_Y, HOLE_WIDTH, 40);
-            
-            // Nest straw texture
-            ctx.strokeStyle = '#a1887f';
+            // Pan rim highlight
+            ctx.beginPath();
+            ctx.ellipse(canvas.width / 2, panY + panHeight / 2, panWidth / 2, panHeight, 0, Math.PI, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
             ctx.lineWidth = 2;
-            for (let i = 0; i < 10; i++) {
-                const xPos = center - HOLE_WIDTH/2 + 5 + i * 6;
+            ctx.stroke();
+        }
+        
+        function drawTreeBranch() {
+            const branchY = BRANCH_Y;
+            
+            // Main branch
+            ctx.beginPath();
+            ctx.moveTo(-20, branchY + 15);
+            ctx.quadraticCurveTo(100, branchY - 5, canvas.width / 2, branchY);
+            ctx.quadraticCurveTo(canvas.width - 100, branchY + 10, canvas.width + 20, branchY - 5);
+            ctx.lineTo(canvas.width + 20, branchY + 25);
+            ctx.quadraticCurveTo(canvas.width - 100, branchY + 30, canvas.width / 2, branchY + 20);
+            ctx.quadraticCurveTo(100, branchY + 25, -20, branchY + 35);
+            ctx.closePath();
+            
+            const branchGradient = ctx.createLinearGradient(0, branchY - 5, 0, branchY + 35);
+            branchGradient.addColorStop(0, '#8B5A2B');
+            branchGradient.addColorStop(0.3, '#6B4423');
+            branchGradient.addColorStop(0.7, '#5D3A1A');
+            branchGradient.addColorStop(1, '#4A2F15');
+            
+            ctx.fillStyle = branchGradient;
+            ctx.fill();
+            
+            // Bark texture
+            ctx.strokeStyle = '#3d2510';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 15; i++) {
+                const x = 30 + i * 32;
                 ctx.beginPath();
-                ctx.moveTo(xPos, HOLE_Y + 5);
-                ctx.lineTo(xPos + 3, HOLE_Y + 35);
+                ctx.moveTo(x, branchY + 5);
+                ctx.lineTo(x + 5, branchY + 18);
                 ctx.stroke();
             }
             
-            // Nest highlight
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.fillRect(center - HOLE_WIDTH / 2, HOLE_Y, HOLE_WIDTH, 6);
+            // Branch highlight
+            ctx.beginPath();
+            ctx.moveTo(0, branchY + 8);
+            ctx.quadraticCurveTo(canvas.width / 2, branchY, canvas.width, branchY + 5);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        
+        function drawNest() {
+            const nestX = canvas.width / 2;
+            const nestY = NEST_Y;
+            const nestWidth = NEST_WIDTH;
+            const nestHeight = 35;
             
-            // Nest label
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-            ctx.shadowBlur = 4;
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('🪹 NEST', center, HOLE_Y + 28);
-            ctx.shadowBlur = 0;
+            // Nest shadow on branch
+            ctx.beginPath();
+            ctx.ellipse(nestX, nestY + nestHeight + 5, nestWidth / 2 + 5, 8, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            
+            // Nest base (outer twigs)
+            ctx.beginPath();
+            ctx.ellipse(nestX, nestY + nestHeight / 2, nestWidth / 2 + 10, nestHeight / 2 + 5, 0, 0, Math.PI * 2);
+            
+            const outerNestGradient = ctx.createRadialGradient(nestX, nestY, 0, nestX, nestY + nestHeight / 2, nestWidth / 2 + 10);
+            outerNestGradient.addColorStop(0, '#8B7355');
+            outerNestGradient.addColorStop(0.5, '#6B5344');
+            outerNestGradient.addColorStop(1, '#4A3728');
+            
+            ctx.fillStyle = outerNestGradient;
+            ctx.fill();
+            
+            // Draw individual twigs around nest
+            ctx.strokeStyle = '#5D4037';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 30; i++) {
+                const angle = (i / 30) * Math.PI * 2;
+                const innerR = nestWidth / 2 - 5;
+                const outerR = nestWidth / 2 + 15;
+                const startX = nestX + Math.cos(angle) * innerR;
+                const startY = nestY + nestHeight / 2 + Math.sin(angle) * (nestHeight / 2 - 3);
+                const endX = nestX + Math.cos(angle + 0.2) * outerR;
+                const endY = nestY + nestHeight / 2 + Math.sin(angle + 0.2) * (nestHeight / 2 + 8);
+                
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.quadraticCurveTo(startX + (Math.random() - 0.5) * 10, startY + (Math.random() - 0.5) * 10, endX, endY);
+                ctx.stroke();
+            }
+            
+            // Nest inner bowl
+            ctx.beginPath();
+            ctx.ellipse(nestX, nestY + nestHeight / 2 + 5, nestWidth / 2 - 5, nestHeight / 2 - 8, 0, 0, Math.PI * 2);
+            
+            const innerNestGradient = ctx.createRadialGradient(nestX, nestY + 5, 0, nestX, nestY + nestHeight / 2 + 5, nestWidth / 2 - 5);
+            innerNestGradient.addColorStop(0, '#3E2723');
+            innerNestGradient.addColorStop(1, '#2A1B18');
+            
+            ctx.fillStyle = innerNestGradient;
+            ctx.fill();
+            
+            // Soft lining in nest
+            ctx.beginPath();
+            ctx.ellipse(nestX, nestY + nestHeight / 2 + 8, nestWidth / 2 - 12, nestHeight / 2 - 12, 0, 0, Math.PI * 2);
+            
+            const liningGradient = ctx.createRadialGradient(nestX, nestY + 10, 0, nestX, nestY + nestHeight / 2 + 8, nestWidth / 2 - 12);
+            liningGradient.addColorStop(0, '#D7CCC8');
+            liningGradient.addColorStop(0.5, '#BCAAA4');
+            liningGradient.addColorStop(1, '#8D6E63');
+            
+            ctx.fillStyle = liningGradient;
+            ctx.fill();
+            
+            // Feather details in lining
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            for (let i = 0; i < 5; i++) {
+                const featherX = nestX - 20 + i * 10;
+                const featherY = nestY + nestHeight / 2 + 5;
+                ctx.beginPath();
+                ctx.ellipse(featherX, featherY, 6, 3, Math.random(), 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        function drawScene() {
+            // Draw fire at bottom
+            drawFire();
+            
+            // Draw frying pan above fire
+            drawFryingPan();
+            
+            // Draw tree branch
+            drawTreeBranch();
+            
+            // Draw nest on branch
+            drawNest();
         }
         
         function gameLoop() {
             frameCount++;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Always draw the bottom zone
-            draw3DHole();
+            // Draw the scene
+            drawScene();
             
             // Draw pegs
             drawPegs();
@@ -415,7 +601,7 @@
         });
         
         // Initial draw
-        draw3DHole();
+        drawScene();
         drawPegs();
     </script>
 </body>
