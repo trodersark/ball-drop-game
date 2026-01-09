@@ -1,262 +1,308 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Ball Drop Game – Inferno Mode</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ball Drop Game</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{
-    background:radial-gradient(circle at top,#2a0a0a,#000);
+    font-family:Arial,sans-serif;
+    background:linear-gradient(135deg,#1a1a2e,#16213e);
+    min-height:100vh;
     display:flex;
     justify-content:center;
     align-items:center;
-    height:100vh;
-    font-family:Arial,sans-serif;
+    padding:20px
 }
 .container{
     background:#fff;
-    padding:20px;
-    border-radius:18px;
-    box-shadow:0 20px 60px rgba(0,0,0,.6);
-    width:560px;
+    border-radius:20px;
+    padding:30px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+    max-width:600px;
+    width:100%
 }
-h1{text-align:center;margin-bottom:10px}
+h1{text-align:center;color:#667eea;margin-bottom:15px}
 canvas{
     display:block;
-    margin:auto;
-    border:4px solid #8b0000;
+    margin:0 auto;
+    border:4px solid #667eea;
     border-radius:12px;
+    cursor:pointer
 }
+.controls{text-align:center;margin-top:15px}
 button{
-    display:block;
-    margin:15px auto 0;
-    padding:12px 28px;
-    font-size:18px;
-    border:none;
-    border-radius:10px;
-    background:linear-gradient(135deg,#b91c1c,#7f1d1d);
+    background:linear-gradient(135deg,#667eea,#764ba2);
     color:#fff;
-    font-weight:bold;
+    border:none;
+    padding:14px 28px;
+    font-size:18px;
+    border-radius:10px;
     cursor:pointer;
+    font-weight:bold
 }
-button:disabled{opacity:.5}
-.status{text-align:center;font-size:20px;margin-top:10px;font-weight:bold}
+button:disabled{background:#aaa}
+.info{text-align:center;margin-top:15px}
+.status{font-size:20px;font-weight:bold}
 </style>
 </head>
 <body>
 
 <div class="container">
-<h1>🍗 Ball Drop – Inferno 🌋</h1>
+<h1>🍗 Ball Drop Game 🍗</h1>
 <canvas id="gameCanvas" width="500" height="700"></canvas>
-<button id="startBtn">Start Game</button>
-<div class="status" id="status">Drop the ball…</div>
+<div class="controls">
+<button id="startButton">Start Game</button>
+</div>
+<div class="info">
+<p class="status" id="status">Click Start Game!</p>
+<p>Games: <span id="gamesPlayed">0</span></p>
+</div>
 </div>
 
 <script>
-/* ================= SETUP ================= */
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-const statusText = document.getElementById("status");
-const startBtn = document.getElementById("startBtn");
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
+const startButton=document.getElementById("startButton");
+const statusText=document.getElementById("status");
+const gamesPlayedSpan=document.getElementById("gamesPlayed");
 
-const VOLCANO_X = canvas.width/2;
-const VOLCANO_Y = canvas.height-180;
+let ball=null,gameActive=false,gameOver=false,playerWon=false;
+let gamesPlayed=0,fireIntensity=1;
+let frameCount=0;
 
-let gameActive=false;
-let ball=null;
-let inferno=false;
-let shake=0;
+const BALL_RADIUS=12,GRAVITY=.35;
+const VOLCANO_X=canvas.width/2;
+const VOLCANO_Y=canvas.height-180;
+const PEG_RADIUS=12,PEG_ROWS=7,PEG_COLS=9;
+const pegs=[];
+let fireParticles=[],smokeParticles=[],waterParticles=[],steamParticles=[];
 
-/* ================= AUDIO ================= */
-const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-
-function playBoom(freq,dur){
-    const o=audioCtx.createOscillator();
-    const g=audioCtx.createGain();
-    o.connect(g).connect(audioCtx.destination);
-    o.type="sawtooth";
-    o.frequency.value=freq;
-    g.gain.setValueAtTime(0.6,audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
-    o.start();
-    o.stop(audioCtx.currentTime+dur);
+/* ================= PEGS ================= */
+function createPegs(){
+    const startY=100,spY=48,spX=55;
+    for(let r=0;r<PEG_ROWS;r++){
+        const cols=r%2===0?PEG_COLS:PEG_COLS-1;
+        const off=r%2===0?25:52;
+        for(let c=0;c<cols;c++){
+            pegs.push({
+                x:off+c*spX,
+                y:startY+r*spY,
+                radius:PEG_RADIUS,
+                rotation:(Math.random()-.5)*.6,
+                lastHit:0
+            });
+        }
+    }
 }
-
-function playFire(){
-    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*0.4;
-    const src = audioCtx.createBufferSource();
-    const g = audioCtx.createGain();
-    src.buffer=buffer;
-    src.loop=true;
-    g.gain.value=0.25;
-    src.connect(g).connect(audioCtx.destination);
-    src.start();
-    return src;
-}
+createPegs();
 
 /* ================= BALL ================= */
 class Ball{
-    constructor(){
-        this.x=canvas.width/2;
-        this.y=60;
-        this.vy=0;
-        this.r=12;
-        this.dropped=false;
+constructor(){
+    this.x=canvas.width/2;
+    this.y=50;
+    this.vx=4;
+    this.vy=0;
+    this.radius=BALL_RADIUS;
+    this.dropped=false;
+    this.sprayingWater=false;
+}
+drop(){this.dropped=true}
+update(){
+    if(!this.dropped){
+        this.x+=this.vx;
+        if(this.x<this.radius||this.x>canvas.width-this.radius) this.vx*=-1;
+        return;
     }
-    drop(){
-        this.dropped=true;
-        playBoom(300,.1);
-    }
-    update(){
-        if(!this.dropped) return;
-        this.vy+=0.35;
-        this.y+=this.vy;
-        if(this.y>VOLCANO_Y && !inferno){
-            inferno=true;
-            shake=40;
-            statusText.textContent="🔥 INFERNO 🔥";
-            playBoom(60,1);
-            fireSound=playFire();
-            burnWings();
+    this.vy+=GRAVITY;
+    this.x+=this.vx;
+    this.y+=this.vy;
+
+    for(let p of pegs){
+        const dx=this.x-p.x,dy=this.y-p.y;
+        const d=Math.hypot(dx,dy);
+        if(d<this.radius+p.radius && frameCount-p.lastHit>10){
+            p.lastHit=frameCount;
+            const a=Math.atan2(dy,dx);
+            this.vx=Math.cos(a)*3;
+            this.vy=Math.sin(a)*3;
         }
     }
-    draw(){
-        ctx.beginPath();
-        ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
-        ctx.fillStyle="#dc2626";
-        ctx.fill();
-        ctx.strokeStyle="#000";
-        ctx.stroke();
+
+    if(this.y>VOLCANO_Y){
+        if(Math.abs(this.x-VOLCANO_X)<45){
+            playerWon=true;
+            this.sprayingWater=true;
+            statusText.textContent="💧 Splash! Fire Out!";
+            statusText.style.color="#3b82f6";
+        }else{
+            statusText.textContent="🔥 Burned! Try again!";
+            statusText.style.color="#dc3545";
+        }
+        gameActive=false;
+        startButton.disabled=false;
     }
 }
-
-/* ================= PEGS (WINGS) ================= */
-const pegs=[];
-for(let r=0;r<7;r++){
-    for(let c=0;c<8;c++){
-        pegs.push({
-            x:60+c*50+(r%2?25:0),
-            y:120+r*55,
-            r:12,
-            vy:0,
-            burning:false,
-            char:0
-        });
-    }
-}
-
-function burnWings(){
-    pegs.forEach(p=>{
-        p.burning=true;
-        p.vy=Math.random()*4+2;
-    });
-}
-
-/* ================= DRAW WING ================= */
-function drawWing(p){
-    ctx.save();
-    ctx.translate(p.x,p.y);
-
-    const w=p.r*1.6,h=p.r*2.4;
-    const burn=Math.min(p.char,1);
-
-    const g=ctx.createRadialGradient(0,-h*.2,0,0,0,h);
-    g.addColorStop(0,`rgb(${255-150*burn},${200-150*burn},${80-80*burn})`);
-    g.addColorStop(1,`rgb(${120*burn},${60*burn},${30*burn})`);
-
+draw(){
     ctx.beginPath();
-    ctx.ellipse(0,0,w/2,h/2,0,0,Math.PI*2);
-    ctx.fillStyle=g;
+    ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
+    ctx.fillStyle=this.sprayingWater?"#3b82f6":"#e63946";
     ctx.fill();
-
-    ctx.strokeStyle="#3a1a0a";
-    ctx.lineWidth=3;
+    ctx.lineWidth=2;
+    ctx.strokeStyle="#000";
     ctx.stroke();
-    ctx.restore();
+}
 }
 
-/* ================= VOLCANO ================= */
+/* ================= CHICKEN DRUMETTE ================= */
+function drawChickenDrumette(x,y,r,rot){
+ctx.save();
+ctx.translate(x,y);
+ctx.rotate(rot);
+const w=r*1.6,h=r*2.4;
+
+/* shadow */
+ctx.fillStyle="rgba(0,0,0,.25)";
+ctx.beginPath();
+ctx.ellipse(4,6,w/2,h/2,0,0,Math.PI*2);
+ctx.fill();
+
+/* meat */
+ctx.beginPath();
+ctx.ellipse(0,0,w/2,h/2,0,0,Math.PI*2);
+const g=ctx.createRadialGradient(-w*.2,-h*.3,0,0,0,h);
+g.addColorStop(0,"#ffcc7a");
+g.addColorStop(.4,"#f1a94d");
+g.addColorStop(.7,"#d07a2d");
+g.addColorStop(1,"#8b4513");
+ctx.fillStyle=g;
+ctx.fill();
+
+/* crispy bumps */
+ctx.fillStyle="rgba(120,60,20,.35)";
+for(let i=0;i<8;i++){
+    ctx.beginPath();
+    ctx.arc((Math.random()-.5)*w*.7,(Math.random()-.5)*h*.7,2+Math.random()*2,0,Math.PI*2);
+    ctx.fill();
+}
+
+/* highlight */
+ctx.fillStyle="rgba(255,255,255,.35)";
+ctx.beginPath();
+ctx.ellipse(-w*.2,-h*.25,w*.25,h*.2,-.4,0,Math.PI*2);
+ctx.fill();
+
+/* bone */
+ctx.fillStyle="#f7f3eb";
+ctx.beginPath();
+ctx.roundRect(-r*.25,h/2-5,r*.5,r*1.2,6);
+ctx.fill();
+ctx.strokeStyle="#d6c9b8";
+ctx.stroke();
+
+/* outline */
+ctx.beginPath();
+ctx.ellipse(0,0,w/2,h/2,0,0,Math.PI*2);
+ctx.lineWidth=3;
+ctx.strokeStyle="#6b2f10";
+ctx.stroke();
+ctx.restore();
+}
+
+function drawPegs(){
+    pegs.forEach(p=>drawChickenDrumette(p.x,p.y,p.radius,p.rotation));
+}
+
+/* ================= CARTOON VOLCANO ================= */
 function drawVolcano(){
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(VOLCANO_X-220,canvas.height);
-    ctx.quadraticCurveTo(VOLCANO_X-100,VOLCANO_Y+50,VOLCANO_X-40,VOLCANO_Y-40);
-    ctx.lineTo(VOLCANO_X+40,VOLCANO_Y-40);
-    ctx.quadraticCurveTo(VOLCANO_X+100,VOLCANO_Y+50,VOLCANO_X+220,canvas.height);
-    ctx.closePath();
-    ctx.fillStyle="#4b2e23";
-    ctx.fill();
-    ctx.strokeStyle="#1b0d07";
-    ctx.lineWidth=5;
-    ctx.stroke();
+const vx=VOLCANO_X,vy=VOLCANO_Y;
+ctx.save();
 
-    if(inferno){
-        ctx.beginPath();
-        ctx.rect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle="rgba(255,80,0,0.35)";
-        ctx.fill();
-    }
-    ctx.restore();
+/* body */
+ctx.beginPath();
+ctx.moveTo(vx-220,canvas.height);
+ctx.quadraticCurveTo(vx-180,vy+120,vx-90,vy+40);
+ctx.quadraticCurveTo(vx-40,vy-20,vx-40,vy-40);
+ctx.lineTo(vx+40,vy-40);
+ctx.quadraticCurveTo(vx+40,vy-20,vx+90,vy+40);
+ctx.quadraticCurveTo(vx+180,vy+120,vx+220,canvas.height);
+ctx.closePath();
+
+const g=ctx.createLinearGradient(vx,vy-50,vx,canvas.height);
+g.addColorStop(0,"#6b4e3d");
+g.addColorStop(1,"#3d2a20");
+ctx.fillStyle=g;
+ctx.fill();
+ctx.lineWidth=5;
+ctx.strokeStyle="#2a1a14";
+ctx.stroke();
+
+/* crater */
+ctx.beginPath();
+ctx.ellipse(vx,vy-35,65,22,0,0,Math.PI*2);
+ctx.fillStyle="#2b0b05";
+ctx.fill();
+ctx.strokeStyle="#ff6a00";
+ctx.lineWidth=4;
+ctx.stroke();
+
+/* lava */
+if(fireIntensity>0){
+ctx.beginPath();
+ctx.ellipse(vx,vy-30,50,16,0,0,Math.PI*2);
+const lg=ctx.createRadialGradient(vx,vy-30,5,vx,vy-30,55);
+lg.addColorStop(0,`rgba(255,255,120,${fireIntensity})`);
+lg.addColorStop(.6,`rgba(255,120,0,${fireIntensity})`);
+lg.addColorStop(1,`rgba(180,30,0,${fireIntensity})`);
+ctx.fillStyle=lg;
+ctx.fill();
+}
+ctx.restore();
+}
+
+/* ================= BACKGROUND ================= */
+function drawBackground(){
+const g=ctx.createLinearGradient(0,0,0,canvas.height);
+g.addColorStop(0,"#87ceeb");
+g.addColorStop(1,"#e0f4ff");
+ctx.fillStyle=g;
+ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
 /* ================= LOOP ================= */
-let fireSound=null;
-
-function loop(){
-    ctx.save();
-    if(shake>0){
-        ctx.translate(
-            (Math.random()-.5)*shake,
-            (Math.random()-.5)*shake
-        );
-        shake*=0.9;
-    }
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle="#87ceeb";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    drawVolcano();
-
-    pegs.forEach(p=>{
-        if(p.burning){
-            p.char+=0.02;
-            p.y+=p.vy;
-        }
-        drawWing(p);
-    });
-
-    if(ball){
-        ball.update();
-        ball.draw();
-    }
-
-    ctx.restore();
-    requestAnimationFrame(loop);
+function gameLoop(){
+frameCount++;
+ctx.clearRect(0,0,canvas.width,canvas.height);
+drawBackground();
+drawVolcano();
+drawPegs();
+if(ball){
+    if(gameActive) ball.update();
+    ball.draw();
+}
+requestAnimationFrame(gameLoop);
 }
 
 /* ================= EVENTS ================= */
-startBtn.onclick=()=>{
-    inferno=false;
-    pegs.forEach(p=>{
-        p.y=p.y;
-        p.burning=false;
-        p.char=0;
-    });
+startButton.onclick=()=>{
+    gamesPlayed++;
+    gamesPlayedSpan.textContent=gamesPlayed;
+    fireIntensity=1;
+    playerWon=false;
     ball=new Ball();
     gameActive=true;
-    startBtn.disabled=true;
+    startButton.disabled=true;
     statusText.textContent="Click to drop!";
+    statusText.style.color="#667eea";
 };
 
 canvas.onclick=()=>{
-    if(ball && !ball.dropped) ball.drop();
+    if(ball && !ball.dropped && gameActive) ball.drop();
 };
 
-loop();
+gameLoop();
 </script>
 </body>
 </html>
