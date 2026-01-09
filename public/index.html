@@ -1,258 +1,652 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Ball Drop – Flaming Wings</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{
-    font-family:Arial,sans-serif;
-    background:linear-gradient(135deg,#1a1a2e,#16213e);
-    min-height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-}
-.container{
-    background:#fff;
-    padding:20px;
-    border-radius:20px;
-    box-shadow:0 20px 60px rgba(0,0,0,.5);
-    width:600px;
-}
-h1{text-align:center;margin-bottom:10px}
-canvas{
-    display:block;
-    margin:auto;
-    border:4px solid #667eea;
-    border-radius:12px;
-}
-button{
-    display:block;
-    margin:15px auto 0;
-    padding:12px 26px;
-    font-size:18px;
-    border:none;
-    border-radius:10px;
-    background:linear-gradient(135deg,#667eea,#764ba2);
-    color:#fff;
-    font-weight:bold;
-    cursor:pointer;
-}
-button:disabled{opacity:.6}
-.status{text-align:center;font-size:18px;margin-top:10px;font-weight:bold}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ball Drop Game</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        #gameCanvas {
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            display: block;
+            margin: 20px auto;
+            cursor: pointer;
+            box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+        }
+        button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        button:disabled { 
+            background: #ccc; 
+            cursor: not-allowed;
+            transform: none;
+        }
+        .info {
+            text-align: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+        }
+        .status {
+            font-weight: bold;
+            font-size: 20px;
+            color: #667eea;
+        }
+        .difficulty {
+            color: #dc3545;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <h1>🍗 Ball Drop Game 🍗</h1>
+        <canvas id="gameCanvas" width="500" height="700"></canvas>
+        <div class="controls">
+            <button id="startButton">Start Game</button>
+        </div>
+        <div class="info">
+            <p class="status" id="status">Click Start Game!</p>
+            <p class="difficulty">🍗 Dodge the drumettes! Don't fall in the volcano! 🌋</p>
+            <p>Games: <span id="gamesPlayed">0</span></p>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const statusText = document.getElementById('status');
+        const gamesPlayedSpan = document.getElementById('gamesPlayed');
+        
+        let ball = null;
+        let gameActive = false;
+        let gamesPlayed = 0;
+        let gameOver = false;
+        let explosion = false;
+        let explosionIntensity = 0;
+        let screenShake = 0;
+        
+        const BALL_RADIUS = 12;
+        const BALL_SPEED = 6;
+        const GRAVITY = 0.3;
+        const VOLCANO_X = canvas.width / 2;
+        const VOLCANO_HOLE_WIDTH = 60;
+        const VOLCANO_TOP_Y = canvas.height - 150;
 
-<div class="container">
-<h1>🍗 Ball Drop 🌋</h1>
-<canvas id="gameCanvas" width="500" height="700"></canvas>
-<button id="startBtn">Start Game</button>
-<div class="status" id="status">Click Start</div>
-</div>
-
-<script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-const startBtn = document.getElementById("startBtn");
-const statusText = document.getElementById("status");
-
-const VOLCANO_X = canvas.width / 2;
-const VOLCANO_Y = canvas.height - 180;
-
-let ball = null;
-let inferno = false;
-let screenShake = 0;
-let gameActive = false;
-
-/* ================= WINGS ================= */
-const pegs = [];
-for(let r=0;r<7;r++){
-    for(let c=0;c<8;c++){
-        pegs.push({
-            x:60+c*50+(r%2?25:0),
-            y:120+r*55,
-            r:12,
-            rotation:(Math.random()-.5)*.6,
-            burning:false,
-            vy:0,
-            char:0
-        });
-    }
-}
-
-/* ================= BALL ================= */
-class Ball{
-    constructor(){
-        this.x = canvas.width/2;
-        this.y = 60;
-        this.vx = 3.5;
-        this.vy = 0;
-        this.r = 12;
-        this.dropped = false;
-        this.fallingIntoHole = false;
-    }
-
-    drop(){
-        this.dropped = true;
-    }
-
-    update(){
-        // Idle bounce before drop
-        if(!this.dropped){
-            this.x += this.vx;
-            if(this.x < this.r || this.x > canvas.width - this.r){
-                this.vx *= -1;
+        const PEG_RADIUS = 12;
+        const PEG_ROWS = 7;
+        const PEG_COLS = 9;
+        let pegs = [];
+        
+        let fireParticles = [];
+        let burningWings = [];
+        
+        function createPegs() {
+            pegs = [];
+            const startY = 100;
+            const spacingY = 48;
+            const spacingX = 55;
+            
+            for (let row = 0; row < PEG_ROWS; row++) {
+                const cols = row % 2 === 0 ? PEG_COLS : PEG_COLS - 1;
+                const offsetX = row % 2 === 0 ? 25 : 52;
+                
+                for (let col = 0; col < cols; col++) {
+                    const x = offsetX + col * spacingX;
+                    const y = startY + row * spacingY;
+                    const rotation = (Math.random() - 0.5) * 0.6;
+                    pegs.push({ 
+                        x, y, 
+                        radius: PEG_RADIUS, 
+                        rotation, 
+                        lastHit: 0,
+                        burning: false,
+                        burnTimer: 0,
+                        falling: false,
+                        fallSpeed: 0,
+                        fallRotation: 0
+                    });
+                }
             }
-            return;
         }
-
-        // Commit to volcano
-        if(
-            !this.fallingIntoHole &&
-            this.y > VOLCANO_Y - 130 &&
-            Math.abs(this.x - VOLCANO_X) < 35
-        ){
-            this.fallingIntoHole = true;
-            this.vx = 0;
-            this.vy = 2;
+        createPegs();
+        
+        function createExplosionParticle(x, y) {
+            return {
+                x: x || VOLCANO_X + (Math.random() - 0.5) * 60,
+                y: y || VOLCANO_TOP_Y,
+                size: 30 + Math.random() * 50,
+                speedX: (Math.random() - 0.5) * 15,
+                speedY: -5 - Math.random() * 15,
+                life: 1,
+                decay: 0.008 + Math.random() * 0.01
+            };
         }
-
-        // Gravity
-        this.vy += 0.4;
-        this.y += this.vy;
-
-        // Trigger flames
-        if(this.fallingIntoHole && this.y > VOLCANO_Y && !inferno){
-            triggerInferno();
+        
+        let frameCount = 0;
+        
+        class Ball {
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = 50;
+                this.vx = BALL_SPEED;
+                this.vy = 0;
+                this.radius = BALL_RADIUS;
+                this.dropped = false;
+                this.rotation = 0;
+                this.visible = true;
+            }
+            
+            update() {
+                if (!this.dropped) {
+                    this.x += this.vx;
+                    if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
+                        this.vx *= -1;
+                    }
+                } else if (this.visible) {
+                    this.vy += GRAVITY;
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.rotation += this.vx * 0.05;
+                    
+                    if (this.vy > 10) this.vy = 10;
+                    
+                    for (let peg of pegs) {
+                        if (peg.falling) continue;
+                        const dx = this.x - peg.x;
+                        const dy = this.y - peg.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < this.radius + peg.radius && frameCount - peg.lastHit > 10) {
+                            peg.lastHit = frameCount;
+                            
+                            const angle = Math.atan2(dy, dx);
+                            
+                            this.x = peg.x + Math.cos(angle) * (this.radius + peg.radius + 3);
+                            this.y = peg.y + Math.sin(angle) * (this.radius + peg.radius + 3);
+                            
+                            this.vx = (Math.random() - 0.5) * 6;
+                            this.vy = 2 + Math.random() * 2;
+                        }
+                    }
+                    
+                    if (this.x - this.radius < 0) {
+                        this.x = this.radius;
+                        this.vx = Math.abs(this.vx) * 0.8;
+                    }
+                    if (this.x + this.radius > canvas.width) {
+                        this.x = canvas.width - this.radius;
+                        this.vx = -Math.abs(this.vx) * 0.8;
+                    }
+                    
+                    if (this.y + this.radius >= VOLCANO_TOP_Y) {
+                        this.checkWin();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            draw() {
+                if (!this.visible) return;
+                
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                ctx.beginPath();
+                ctx.arc(4, 4, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                
+                const gradient = ctx.createRadialGradient(-4, -4, 0, 0, 0, this.radius);
+                gradient.addColorStop(0, '#ff6b6b');
+                gradient.addColorStop(0.3, '#ee5a52');
+                gradient.addColorStop(0.7, '#dc3545');
+                gradient.addColorStop(1, '#991b1b');
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(-4, -4, this.radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = '#991b1b';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+            
+            drop() {
+                this.dropped = true;
+            }
+            
+            checkWin() {
+                const distance = Math.abs(this.x - VOLCANO_X);
+                if (distance < VOLCANO_HOLE_WIDTH / 2) {
+                    // Fell in volcano - EXPLOSION!
+                    statusText.textContent = '🔥 ERUPTION! Everything burns! 🔥';
+                    statusText.style.color = '#ff4500';
+                    this.visible = false;
+                    explosion = true;
+                    explosionIntensity = 0;
+                    screenShake = 20;
+                    
+                    // Create initial explosion particles
+                    for (let i = 0; i < 50; i++) {
+                        fireParticles.push(createExplosionParticle());
+                    }
+                } else {
+                    // Landed safely
+                    statusText.textContent = '✅ Safe landing! You survived!';
+                    statusText.style.color = '#10b981';
+                }
+                gameActive = false;
+                gameOver = true;
+                startButton.disabled = false;
+            }
         }
-    }
-
-    draw(){
-        ctx.beginPath();
-        ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
-        ctx.fillStyle="#e63946";
-        ctx.fill();
-        ctx.strokeStyle="#000";
-        ctx.stroke();
-    }
-}
-
-/* ================= INFERNO ================= */
-function triggerInferno(){
-    inferno = true;
-    screenShake = 20;
-    statusText.textContent = "🔥 WINGS ON FIRE 🔥";
-
-    pegs.forEach(p=>{
-        p.burning = true;
-        p.vy = Math.random()*3 + 2;
-    });
-}
-
-/* ================= DRAW WING ================= */
-function drawWing(p){
-    ctx.save();
-    ctx.translate(p.x,p.y);
-    ctx.rotate(p.rotation);
-
-    const w = p.r*1.6;
-    const h = p.r*2.4;
-    const burn = Math.min(p.char,1);
-
-    const g = ctx.createRadialGradient(0,-h*.2,0,0,0,h);
-    g.addColorStop(0,`rgb(${255-140*burn},${200-140*burn},${90-80*burn})`);
-    g.addColorStop(1,`rgb(${100+80*burn},${50+40*burn},${20+20*burn})`);
-
-    ctx.beginPath();
-    ctx.ellipse(0,0,w/2,h/2,0,0,Math.PI*2);
-    ctx.fillStyle = g;
-    ctx.fill();
-
-    if(p.burning){
-        ctx.beginPath();
-        ctx.ellipse(0,-h*.6,w*.3,h*.45,0,0,Math.PI*2);
-        ctx.fillStyle="rgba(255,120,0,.65)";
-        ctx.fill();
-    }
-
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#6b2f10";
-    ctx.stroke();
-    ctx.restore();
-}
-
-/* ================= VOLCANO ================= */
-function drawVolcano(){
-    ctx.beginPath();
-    ctx.moveTo(VOLCANO_X-220,canvas.height);
-    ctx.quadraticCurveTo(VOLCANO_X-100,VOLCANO_Y+60,VOLCANO_X-40,VOLCANO_Y-40);
-    ctx.lineTo(VOLCANO_X+40,VOLCANO_Y-40);
-    ctx.quadraticCurveTo(VOLCANO_X+100,VOLCANO_Y+60,VOLCANO_X+220,canvas.height);
-    ctx.closePath();
-    ctx.fillStyle="#5b3a2e";
-    ctx.fill();
-    ctx.lineWidth=5;
-    ctx.strokeStyle="#2a1a14";
-    ctx.stroke();
-}
-
-/* ================= LOOP ================= */
-function loop(){
-    ctx.save();
-
-    if(screenShake>0){
-        ctx.translate(
-            (Math.random()-.5)*screenShake,
-            (Math.random()-.5)*screenShake
-        );
-        screenShake *= 0.9;
-    }
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle="#87ceeb";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    drawVolcano();
-
-    pegs.forEach(p=>{
-        if(p.burning){
-            p.char += 0.02;
-            p.y += p.vy;
+        
+        function drawChickenDrumette(x, y, radius, rotation, burning, burnProgress) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            
+            const meatLength = radius * 2.2;
+            const meatWidth = radius * 1.4;
+            const boneLength = radius * 1.0;
+            const boneWidth = radius * 0.35;
+            
+            // Burning effect - darken colors
+            let meatColor1 = '#f4a940';
+            let meatColor2 = '#e8923a';
+            let meatColor3 = '#d4782f';
+            let meatColor4 = '#c45e20';
+            let meatColor5 = '#8b4513';
+            
+            if (burning) {
+                const burn = Math.min(burnProgress, 1);
+                meatColor1 = `rgb(${Math.floor(244 - burn * 200)}, ${Math.floor(169 - burn * 169)}, ${Math.floor(64 - burn * 64)})`;
+                meatColor2 = `rgb(${Math.floor(232 - burn * 200)}, ${Math.floor(146 - burn * 146)}, ${Math.floor(58 - burn * 58)})`;
+                meatColor3 = `rgb(${Math.floor(212 - burn * 180)}, ${Math.floor(120 - burn * 120)}, ${Math.floor(47 - burn * 47)})`;
+                meatColor4 = `rgb(${Math.floor(196 - burn * 170)}, ${Math.floor(94 - burn * 94)}, ${Math.floor(32 - burn * 32)})`;
+                meatColor5 = `rgb(${Math.floor(139 - burn * 120)}, ${Math.floor(69 - burn * 69)}, ${Math.floor(19 - burn * 19)})`;
+            }
+            
+            // Shadow
+            ctx.save();
+            ctx.translate(3, 3);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, meatWidth / 2, meatLength / 2, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            ctx.restore();
+            
+            // Bone
+            ctx.fillStyle = burning ? `rgb(${200 - burnProgress * 150}, ${190 - burnProgress * 150}, ${180 - burnProgress * 150})` : '#f5f0e6';
+            ctx.beginPath();
+            ctx.roundRect(-boneWidth / 2, meatLength / 2 - 8, boneWidth, boneLength, 3);
+            ctx.fill();
+            
+            // Bone knob
+            ctx.beginPath();
+            ctx.ellipse(0, meatLength / 2 + boneLength - 10, boneWidth * 0.6, boneWidth * 0.45, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Main meat body
+            ctx.beginPath();
+            ctx.ellipse(0, 0, meatWidth / 2, meatLength / 2, 0, 0, Math.PI * 2);
+            
+            const meatGradient = ctx.createRadialGradient(-meatWidth * 0.2, -meatLength * 0.2, 0, 0, 0, meatLength / 2);
+            meatGradient.addColorStop(0, meatColor1);
+            meatGradient.addColorStop(0.3, meatColor2);
+            meatGradient.addColorStop(0.6, meatColor3);
+            meatGradient.addColorStop(0.85, meatColor4);
+            meatGradient.addColorStop(1, meatColor5);
+            
+            ctx.fillStyle = meatGradient;
+            ctx.fill();
+            
+            // Crispy bumps
+            const bumps = [
+                {x: -meatWidth * 0.25, y: -meatLength * 0.2, r: 4},
+                {x: meatWidth * 0.15, y: -meatLength * 0.25, r: 3.5},
+                {x: meatWidth * 0.3, y: 0, r: 3},
+                {x: -meatWidth * 0.3, y: meatLength * 0.1, r: 4},
+                {x: 0, y: meatLength * 0.25, r: 3.5},
+            ];
+            
+            ctx.fillStyle = burning ? `rgb(${Math.max(50, 205 - burnProgress * 180)}, ${Math.max(20, 106 - burnProgress * 100)}, ${Math.max(10, 39 - burnProgress * 30)})` : '#cd6a27';
+            for (let bump of bumps) {
+                ctx.beginPath();
+                ctx.arc(bump.x, bump.y, bump.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Highlight (only if not burning)
+            if (!burning) {
+                ctx.beginPath();
+                ctx.ellipse(-meatWidth * 0.15, -meatLength * 0.2, meatWidth * 0.25, meatLength * 0.2, -0.3, 0, Math.PI * 2);
+                const highlightGradient = ctx.createRadialGradient(-meatWidth * 0.15, -meatLength * 0.2, 0, -meatWidth * 0.15, -meatLength * 0.2, meatWidth * 0.3);
+                highlightGradient.addColorStop(0, 'rgba(255, 230, 150, 0.7)');
+                highlightGradient.addColorStop(0.5, 'rgba(255, 200, 100, 0.3)');
+                highlightGradient.addColorStop(1, 'rgba(255, 180, 80, 0)');
+                ctx.fillStyle = highlightGradient;
+                ctx.fill();
+            }
+            
+            // Outline
+            ctx.beginPath();
+            ctx.ellipse(0, 0, meatWidth / 2, meatLength / 2, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = burning ? `rgb(${Math.max(30, 139 - burnProgress * 120)}, ${Math.max(20, 69 - burnProgress * 60)}, ${Math.max(10, 19 - burnProgress * 15)})` : '#8b4513';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.restore();
         }
-        drawWing(p);
-    });
-
-    if(ball){
-        if(gameActive) ball.update();
-        ball.draw();
-    }
-
-    ctx.restore();
-    requestAnimationFrame(loop);
-}
-
-/* ================= EVENTS ================= */
-startBtn.onclick = ()=>{
-    inferno = false;
-    pegs.forEach(p=>{
-        p.burning = false;
-        p.char = 0;
-    });
-    ball = new Ball();
-    gameActive = true;
-    statusText.textContent = "Click canvas to drop";
-};
-
-canvas.onclick = ()=>{
-    if(ball && !ball.dropped){
-        ball.drop();
-    }
-};
-
-loop();
-</script>
+        
+        function drawPegs() {
+            for (let peg of pegs) {
+                if (peg.y < canvas.height + 50) {
+                    drawChickenDrumette(peg.x, peg.y, peg.radius, peg.rotation, peg.burning, peg.burnTimer);
+                    
+                    // Draw fire on burning wings
+                    if (peg.burning && peg.burnTimer < 2) {
+                        for (let i = 0; i < 3; i++) {
+                            const flameX = peg.x + (Math.random() - 0.5) * 20;
+                            const flameY = peg.y - 10 - Math.random() * 15;
+                            const flameSize = 8 + Math.random() * 12;
+                            
+                            const gradient = ctx.createRadialGradient(flameX, flameY, 0, flameX, flameY, flameSize);
+                            gradient.addColorStop(0, 'rgba(255, 255, 100, 0.9)');
+                            gradient.addColorStop(0.3, 'rgba(255, 150, 0, 0.7)');
+                            gradient.addColorStop(0.7, 'rgba(255, 50, 0, 0.4)');
+                            gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                            
+                            ctx.beginPath();
+                            ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
+                            ctx.fillStyle = gradient;
+                            ctx.fill();
+                        }
+                    }
+                }
+            }
+        }
+        
+        function drawVolcano() {
+            const vx = VOLCANO_X;
+            const vy = VOLCANO_TOP_Y;
+            const holeWidth = VOLCANO_HOLE_WIDTH;
+            
+            // Main mountain body - simple triangle shape
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            ctx.lineTo(vx - holeWidth / 2 - 15, vy + 20);
+            ctx.lineTo(vx - holeWidth / 2, vy);
+            ctx.lineTo(vx + holeWidth / 2, vy);
+            ctx.lineTo(vx + holeWidth / 2 + 15, vy + 20);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            
+            // Mountain gradient - brown/gray
+            const mountainGradient = ctx.createLinearGradient(0, vy, 0, canvas.height);
+            mountainGradient.addColorStop(0, '#6b5344');
+            mountainGradient.addColorStop(0.3, '#5a4636');
+            mountainGradient.addColorStop(0.7, '#4a3828');
+            mountainGradient.addColorStop(1, '#3d2e1f');
+            ctx.fillStyle = mountainGradient;
+            ctx.fill();
+            
+            // Left dark side
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            ctx.lineTo(vx - holeWidth / 2 - 15, vy + 20);
+            ctx.lineTo(vx - holeWidth / 2, vy);
+            ctx.lineTo(vx - 30, canvas.height);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            
+            // Crater rim - orange/red
+            ctx.beginPath();
+            ctx.moveTo(vx - holeWidth / 2 - 20, vy + 25);
+            ctx.lineTo(vx - holeWidth / 2 - 5, vy - 5);
+            ctx.lineTo(vx + holeWidth / 2 + 5, vy - 5);
+            ctx.lineTo(vx + holeWidth / 2 + 20, vy + 25);
+            ctx.closePath();
+            
+            const rimGradient = ctx.createLinearGradient(vx, vy - 5, vx, vy + 25);
+            rimGradient.addColorStop(0, '#ff6b35');
+            rimGradient.addColorStop(0.5, '#e55a2b');
+            rimGradient.addColorStop(1, '#8b3a1d');
+            ctx.fillStyle = rimGradient;
+            ctx.fill();
+            
+            // Crater hole - dark
+            ctx.beginPath();
+            ctx.ellipse(vx, vy + 8, holeWidth / 2, 12, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#1a0500';
+            ctx.fill();
+            
+            // Lava glow in hole
+            ctx.beginPath();
+            ctx.ellipse(vx, vy + 10, holeWidth / 2 - 8, 8, 0, 0, Math.PI * 2);
+            const lavaGlow = ctx.createRadialGradient(vx, vy + 10, 0, vx, vy + 10, holeWidth / 2 - 8);
+            lavaGlow.addColorStop(0, 'rgba(255, 200, 50, 0.9)');
+            lavaGlow.addColorStop(0.5, 'rgba(255, 100, 0, 0.6)');
+            lavaGlow.addColorStop(1, 'rgba(200, 50, 0, 0.3)');
+            ctx.fillStyle = lavaGlow;
+            ctx.fill();
+        }
+        
+        function updateExplosion() {
+            if (!explosion) return;
+            
+            explosionIntensity += 0.02;
+            if (screenShake > 0) screenShake -= 0.5;
+            
+            // Add more fire particles
+            if (explosionIntensity < 1.5) {
+                for (let i = 0; i < 3; i++) {
+                    fireParticles.push(createExplosionParticle(
+                        Math.random() * canvas.width,
+                        canvas.height + 50
+                    ));
+                }
+            }
+            
+            // Update fire particles
+            for (let i = fireParticles.length - 1; i >= 0; i--) {
+                const p = fireParticles[i];
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.speedY += 0.1; // slight gravity
+                p.life -= p.decay;
+                
+                if (p.life <= 0) {
+                    fireParticles.splice(i, 1);
+                }
+            }
+            
+            // Start burning wings progressively
+            if (explosionIntensity > 0.3) {
+                for (let peg of pegs) {
+                    if (!peg.burning && Math.random() < 0.05) {
+                        peg.burning = true;
+                    }
+                }
+            }
+            
+            // Update burning wings
+            for (let peg of pegs) {
+                if (peg.burning) {
+                    peg.burnTimer += 0.02;
+                    
+                    // Start falling after burning for a bit
+                    if (peg.burnTimer > 1 && !peg.falling) {
+                        peg.falling = true;
+                        peg.fallSpeed = 1 + Math.random() * 2;
+                        peg.fallRotation = (Math.random() - 0.5) * 0.2;
+                    }
+                    
+                    if (peg.falling) {
+                        peg.y += peg.fallSpeed;
+                        peg.fallSpeed += 0.3;
+                        peg.rotation += peg.fallRotation;
+                    }
+                }
+            }
+        }
+        
+        function drawExplosion() {
+            if (!explosion) return;
+            
+            // Screen shake
+            if (screenShake > 0) {
+                ctx.save();
+                ctx.translate(
+                    (Math.random() - 0.5) * screenShake,
+                    (Math.random() - 0.5) * screenShake
+                );
+            }
+            
+            // Fire overlay
+            const fireOverlay = ctx.createLinearGradient(0, canvas.height, 0, 0);
+            const intensity = Math.min(explosionIntensity, 1);
+            fireOverlay.addColorStop(0, `rgba(255, 50, 0, ${intensity * 0.8})`);
+            fireOverlay.addColorStop(0.3, `rgba(255, 100, 0, ${intensity * 0.5})`);
+            fireOverlay.addColorStop(0.6, `rgba(255, 150, 0, ${intensity * 0.3})`);
+            fireOverlay.addColorStop(1, `rgba(255, 200, 0, ${intensity * 0.1})`);
+            ctx.fillStyle = fireOverlay;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw fire particles
+            for (let p of fireParticles) {
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                gradient.addColorStop(0, `rgba(255, 255, 150, ${p.life})`);
+                gradient.addColorStop(0.3, `rgba(255, 200, 50, ${p.life * 0.8})`);
+                gradient.addColorStop(0.6, `rgba(255, 100, 0, ${p.life * 0.5})`);
+                gradient.addColorStop(1, `rgba(255, 50, 0, 0)`);
+                
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+            
+            if (screenShake > 0) {
+                ctx.restore();
+            }
+        }
+        
+        function drawBackground() {
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGradient.addColorStop(0, '#87CEEB');
+            skyGradient.addColorStop(0.6, '#B0E0E6');
+            skyGradient.addColorStop(1, '#E0F4FF');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        function gameLoop() {
+            frameCount++;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawBackground();
+            drawVolcano();
+            drawPegs();
+            
+            if (ball) {
+                if (gameActive) {
+                    ball.update();
+                }
+                ball.draw();
+            }
+            
+            updateExplosion();
+            drawExplosion();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        startButton.addEventListener('click', function() {
+            startButton.disabled = true;
+            gamesPlayed++;
+            gamesPlayedSpan.textContent = gamesPlayed;
+            gameOver = false;
+            explosion = false;
+            explosionIntensity = 0;
+            screenShake = 0;
+            fireParticles = [];
+            createPegs();
+            ball = new Ball();
+            gameActive = true;
+            statusText.textContent = 'Click to drop the ball!';
+            statusText.style.color = '#667eea';
+        });
+        
+        canvas.addEventListener('click', function() {
+            if (gameActive && ball && !ball.dropped) {
+                ball.drop();
+                statusText.textContent = '🌋 Falling...';
+            }
+        });
+        
+        gameLoop();
+    </script>
 </body>
 </html>
